@@ -19,6 +19,17 @@ module Smswire
         Set.new
       end
 
+      # Raise Smswire::SignatureError unless +request+ was signed by the
+      # provider. +url+ is the public URL the provider posted to.
+      def verify_signature!(request, url:)
+        raise NotImplementedError, "#{self.class.name} does not support callbacks"
+      end
+
+      # Return a Smswire::StatusUpdate for a status callback request.
+      def parse_status_callback(request)
+        raise NotImplementedError, "#{self.class.name} does not support status callbacks"
+      end
+
       private
 
       def receipt(**attributes)

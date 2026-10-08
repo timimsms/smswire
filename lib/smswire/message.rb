@@ -7,6 +7,9 @@ module Smswire
     attr_accessor :to, :from, :body, :media_urls, :messaging_service, :provider,
       :category, :metadata, :validity_period, :messenger, :action, :recipient
     attr_reader :raw_to
+
+    # Set by the pipeline when Smswire.config.callbacks_url is configured.
+    attr_accessor :status_callback_url
     attr_writer :idempotency_key
 
     def initialize(to:, body:, from: nil, media_urls: [], messaging_service: nil, provider: nil,
@@ -47,6 +50,12 @@ module Smswire
 
     def idempotency_key
       @idempotency_key || Digest::SHA256.hexdigest([messenger, action, to, body].join("\u0000"))[0, 32]
+    end
+
+    # Fix the key to the current content, so interceptors that rewrite the
+    # body do not change which message this is.
+    def lock_idempotency_key!
+      @idempotency_key = idempotency_key
     end
 
     # Attributes safe to log or instrument. Never includes the body.

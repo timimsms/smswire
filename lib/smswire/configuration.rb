@@ -40,6 +40,28 @@ module Smswire
 
     attr_accessor :interceptors, :observers, :logger
 
+    # Record every send in smswire_deliveries. Requires the engine migrations.
+    attr_accessor :persist_deliveries
+
+    # Identical messages (same messenger, action, recipient, and body, or the
+    # same explicit idempotency_key) inside this window are refused as
+    # :duplicate. nil disables deduplication.
+    attr_accessor :dedupe_window
+
+    # Public base URL where Smswire::Engine is mounted, e.g.
+    # "https://app.example.com/smswire". When set, providers that support
+    # status callbacks are told to post to "<callbacks_url>/status/<provider>".
+    attr_accessor :callbacks_url
+
+    attr_accessor :verify_callback_signatures
+
+    # Store message bodies on deliveries. Overridden per category with
+    # categories: { otp: { store_body: false } }.
+    attr_accessor :store_bodies
+
+    # Per-category settings. Phase 2 honors :store_body.
+    attr_accessor :categories
+
     def initialize
       @default_provider = nil
       @providers = {}
@@ -54,6 +76,12 @@ module Smswire
       @interceptors = []
       @observers = []
       @logger = nil
+      @persist_deliveries = true
+      @dedupe_window = 10.minutes
+      @callbacks_url = nil
+      @verify_callback_signatures = true
+      @store_bodies = true
+      @categories = {otp: {store_body: false}}
     end
 
     def phone_validator=(value)
@@ -70,6 +98,15 @@ module Smswire
         raise ConfigurationError, "body_whitespace must be one of #{WHITESPACE_MODES.join(", ")}"
       end
       @body_whitespace = value
+    end
+
+    def category_options(category)
+      (categories[category.to_s.to_sym] || categories[category.to_s] || {}).to_h.symbolize_keys
+    end
+
+    def store_body?(category)
+      setting = category_options(category)[:store_body]
+      setting.nil? ? store_bodies : setting
     end
 
     def provider_options(name)

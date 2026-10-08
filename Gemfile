@@ -7,12 +7,14 @@ if (rails_version = ENV["RAILS_VERSION"])
   requirement = "~> #{rails_version}.0"
   gem "actionpack", requirement
   gem "activejob", requirement
+  gem "activerecord", requirement
   gem "activesupport", requirement
   gem "railties", requirement
   # ActiveSupport 7.1 and 8.0 pass to_json options that json 3.0 removed.
   gem "json", "< 3" if %w[7.1 8.0].include?(rails_version)
 end
 
+gem "sqlite3", (ENV["RAILS_VERSION"] == "7.1") ? "~> 1.4" : ">= 2.1"
 gem "rake", "~> 13.0"
 gem "minitest", "~> 5.25"
 gem "webmock", "~> 3.23"

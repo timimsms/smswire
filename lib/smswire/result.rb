@@ -8,8 +8,11 @@ module Smswire
   #   :rejected_empty_body         no body and no media
   #   :suppressed_by_interceptor   an interceptor cancelled delivery
   #   :skipped                     the messenger action did not call +text+
-  Result = Data.define(:status, :message, :receipt, :error) do
-    def initialize(status:, message: nil, receipt: nil, error: nil)
+  #   :duplicate                   an identical message was sent inside the dedupe window
+  #
+  # +delivery+ is the Smswire::Delivery row when persistence is enabled.
+  Result = Data.define(:status, :message, :receipt, :error, :delivery) do
+    def initialize(status:, message: nil, receipt: nil, error: nil, delivery: nil)
       super
     end
 
@@ -22,6 +25,8 @@ module Smswire
     def suppressed? = status == :suppressed_by_interceptor
 
     def skipped? = status == :skipped
+
+    def duplicate? = status == :duplicate
 
     def provider_id = receipt&.provider_id
   end
