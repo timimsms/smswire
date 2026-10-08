@@ -114,7 +114,7 @@ registrar before buying.
 
 Perform in this order, since the first two are free and instant:
 
-1. Reserve the GitHub org `smswire` and create the repo `smswire/smswire`.
+1. Create the repo `timimsms/smswire` (done; an org can be created or the repo moved later).
 2. Push a `0.0.1.pre` gem to rubygems.org to reserve the name, with MFA
    enabled on the account and the `allowed_push_host` metadata set.
 3. Register `smswire.dev` (and `smswire.io` if desired).
