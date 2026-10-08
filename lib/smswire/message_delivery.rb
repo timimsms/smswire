@@ -30,12 +30,16 @@ module Smswire
       !@processed_messenger.nil?
     end
 
-    # Run the pipeline now and return a Smswire::Result.
+    # Run the pipeline now and return a Smswire::Result. A deferred result
+    # (quiet hours or rate limit) enqueues the action again for +resume_at+,
+    # so arguments must then be serializable by ActiveJob.
     def deliver_now
       message = processed_messenger.message
       return Result.new(status: :skipped) if message.nil?
 
-      Pipeline.call(message)
+      result = Pipeline.call(message)
+      enqueue(wait_until: result.resume_at) if result.deferred? && result.resume_at
+      result
     end
 
     # Enqueue Smswire::DeliveryJob. The action runs again inside the job,
@@ -46,11 +50,14 @@ module Smswire
           "Changes made to the message would be lost; call deliver_later without reading it first."
       end
 
-      options = {wait:, wait_until:, queue:, priority:}.compact
-      DeliveryJob.set(options).perform_later(@messenger_class.name, @action.to_s, @params, @args, @kwargs)
+      enqueue(wait:, wait_until:, queue:, priority:)
     end
 
     private
+
+    def enqueue(**options)
+      DeliveryJob.set(options.compact).perform_later(@messenger_class.name, @action.to_s, @params, @args, @kwargs)
+    end
 
     def processed_messenger
       @processed_messenger ||= @messenger_class.new.tap do |messenger|

@@ -1,7 +1,8 @@
 module Smswire
   # A from-number or messaging service, with the provider that owns it.
-  Sender = Data.define(:number, :messaging_service, :provider) do
-    def initialize(number: nil, messaging_service: nil, provider: nil)
+  # +consent_scope+ names the consent program the sender belongs to.
+  Sender = Data.define(:number, :messaging_service, :provider, :consent_scope) do
+    def initialize(number: nil, messaging_service: nil, provider: nil, consent_scope: nil)
       super
     end
 
@@ -16,7 +17,8 @@ module Smswire
           raise ConfigurationError, "Unknown sender :#{value}. Define it in Smswire.config.senders."
         end
         options = options.to_h.symbolize_keys
-        new(number: options[:number], messaging_service: options[:messaging_service], provider: options[:provider]&.to_sym)
+        new(number: options[:number], messaging_service: options[:messaging_service],
+          provider: options[:provider]&.to_sym, consent_scope: options[:consent_scope]&.to_s)
       else
         raise ConfigurationError, "from: must be a phone number String or a sender Symbol, got #{value.class.name}"
       end

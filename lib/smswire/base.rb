@@ -24,7 +24,7 @@ module Smswire
 
     abstract!
 
-    TEXT_OPTIONS = %i[category provider messaging_service media_urls metadata idempotency_key validity_period].freeze
+    TEXT_OPTIONS = %i[category provider messaging_service media_urls metadata idempotency_key validity_period consent_scope].freeze
     DEFAULT_KEYS = (%i[from] + TEXT_OPTIONS - %i[media_urls idempotency_key]).freeze
 
     class_attribute :default_params, default: {}.freeze
@@ -112,6 +112,7 @@ module Smswire
         metadata: settings[:metadata],
         validity_period: settings[:validity_period],
         idempotency_key: settings[:idempotency_key],
+        consent_scope: settings[:consent_scope] || sender.consent_scope,
         messenger: self.class.name,
         action: action_name
       )

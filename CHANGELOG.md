@@ -7,6 +7,17 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `Smswire::Consent` with per-sender consent scopes, evidence metadata, and
+  `opt_in!`, `opt_out!`, `opt_out_everywhere!`, and `status_for`.
+- Inbound webhook endpoint storing `Smswire::InboundMessage` once per
+  provider message id, with STOP / START / HELP keyword handling,
+  configurable auto-replies, and an `sms_received` observer hook.
+- Category rules for consent, quiet hours, and rate limits, merged over
+  shipped defaults. New outcomes `:rejected_opted_out`,
+  `:rejected_no_consent`, `:rejected_rate_limited`, `:deferred_quiet_hours`,
+  and `:deferred_rate_limited`; deferred messages re-enqueue themselves.
+- Carrier opt-out errors record an opt-out with source `carrier`.
+
 - `Smswire::Engine` with `smswire:install:migrations` and the
   `smswire_deliveries` table, following the app's primary key type.
 - `Smswire::Delivery` records for every send, with atomic send claims,

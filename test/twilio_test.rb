@@ -77,6 +77,7 @@ class TwilioTest < Smswire::TestCase
       assert_equal reason, result.error.reason
       assert_equal code.to_s, result.error.provider_code
       assert_equal 400, result.error.http_status
+      Smswire::Consent.delete_all
     end
   end
 

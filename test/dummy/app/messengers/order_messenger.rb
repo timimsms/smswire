@@ -20,4 +20,8 @@ class OrderMessenger < ApplicationMessenger
   def literal(phone, body)
     text to: phone, body:
   end
+
+  def deal(phone, body)
+    text to: phone, body:, category: :marketing
+  end
 end

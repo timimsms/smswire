@@ -204,7 +204,7 @@ end
   message so previews, logs, and callbacks can report them.
 - `default` supports `from`, `category`, `provider`, `messaging_service`,
   `metadata`, `validity_period`. A named sender is given as `from: :name`.
-  `quiet_hours` joins in Phase 3.
+  Quiet hours and rate limits are set per category, not per messenger.
 
 ### 6.2 Message object
 
@@ -344,18 +344,30 @@ legal compliance. Defaults follow CTIA messaging principles so an app that does
 nothing is at least not wrong:
 
 - **Keyword handling** on inbound: opt-out set (`STOP`, `STOPALL`,
-  `UNSUBSCRIBE`, `CANCEL`, `END`, `QUIT`), help set (`HELP`, `INFO`), opt-in
-  set (`START`, `YES`, `UNSTOP`). Case-insensitive, trimmed, configurable.
+  `UNSUBSCRIBE`, `CANCEL`, `END`, `QUIT`, `OPTOUT`, `REVOKE`), help set
+  (`HELP`, `INFO`), opt-in set (`START`, `YES`, `UNSTOP`). A keyword matches
+  only as the whole message, ignoring case, whitespace, and surrounding
+  punctuation. Configurable. `STOPALL` opts out of every consent scope.
+- **Consent scopes**: consent is stored per phone number and scope. A
+  sender's `consent_scope` (default `"default"`) decides the scope for both
+  outbound checks and inbound keywords to that sender's number.
 - **Auto-replies** for each keyword are templated and configurable; the
-  opt-out confirmation is sent even if consent is already `opted_out`.
+  opt-out confirmation is sent even if consent is already `opted_out`,
+  through the built-in `compliance` category, which skips consent checks.
+  When the provider already replied, as Twilio Advanced Opt-Out signals with
+  `OptOutType`, consent is recorded and no second reply is sent.
 - **Consent gating** by category: `otp` and `transactional` default to
   `allow_unless_opted_out`; `marketing` defaults to `require_opted_in`.
   Apps can define categories and rules.
 - **Quiet hours** per category, evaluated in the recipient's time zone when
   resolvable (recipient object responds to `time_zone`), otherwise in a
-  configured default. Deferred messages re-enqueue for the next window.
-- **Rate limits** per recipient per category over a sliding window, backed by
-  `Rails.cache`.
+  configured default. Deferred messages re-enqueue for the next window,
+  from both `deliver_now` and `deliver_later`. The marketing default is the
+  US federal TCPA window, 9pm to 8am; some states are stricter.
+- **Rate limits** per recipient per category over a sliding window, counted
+  from `smswire_deliveries` so they survive restarts and are shared across
+  processes. Failed and suppressed deliveries do not count. Concurrent sends
+  can exceed the limit briefly.
 - **Carrier opt-out sync**: a permanent error with an unsubscribed/blocked
   code updates the consent row to `opted_out` with `source: carrier`.
 
@@ -446,11 +458,16 @@ Smswire.configure do |c|
   c.default_region = "US"             # for parsing national-format numbers
   c.phone_validator = :auto            # :phonelib, or :e164 (built-in, no extra dependency)
 
+  # Merged per key over the shipped defaults:
+  #   otp:           { consent: :allow_unless_opted_out, store_body: false }
+  #   transactional: { consent: :allow_unless_opted_out }
+  #   marketing:     { consent: :require_opted_in, quiet_hours: "21:00".."08:00" }
+  #   compliance:    { consent: :none }   # keyword auto-replies
   c.categories = {
-    otp:           { consent: :allow_unless_opted_out, quiet_hours: nil,            store_body: false },
-    transactional: { consent: :allow_unless_opted_out, quiet_hours: nil },
-    marketing:     { consent: :require_opted_in,      quiet_hours: "21:00".."09:00", rate_limit: {max: 3, per: 1.day} }
+    marketing: { rate_limit: {max: 3, per: 1.day} }   # exceed: :defer (default) or :reject
   }
+  c.default_time_zone = "America/New_York"   # quiet hours when the recipient has no time_zone
+  c.program_name = "Acme Alerts"             # used in keyword auto-replies
 
   c.dedupe_window = 10.minutes
   c.retry_attempts = 5                # total attempts for transient errors; polynomial backoff
@@ -541,6 +558,9 @@ next. No phase includes a calendar estimate.
   confirmation; a `marketing` send to a non-opted-in number is rejected with
   `:rejected_no_consent`; a quiet-hours send is re-enqueued for the next
   window.
+- Status: implemented. Inbound webhooks are recorded once per provider
+  message id, so retries never double-process a keyword. Observers can
+  implement `sms_received(inbound_message)` to build two-way messaging.
 
 ### Phase 4: Developer experience
 
