@@ -9,8 +9,8 @@ if (rails_version = ENV["RAILS_VERSION"])
   gem "activejob", requirement
   gem "activesupport", requirement
   gem "railties", requirement
-  # ActiveSupport 7.1's to_json passes options that json 3.0 removed.
-  gem "json", "< 3" if rails_version == "7.1"
+  # ActiveSupport 7.1 and 8.0 pass to_json options that json 3.0 removed.
+  gem "json", "< 3" if %w[7.1 8.0].include?(rails_version)
 end
 
 gem "rake", "~> 13.0"

@@ -20,7 +20,7 @@ class PipelineTest < Smswire::TestCase
   end
 
   teardown do
-    [Rewriter, Blocker, "PipelineTest::Blocker"].each { Smswire.unregister_interceptor(_1) }
+    [Rewriter, Blocker, "PipelineTest::Blocker"].each { |hook| Smswire.unregister_interceptor(hook) }
     Smswire.unregister_observer(Recorder)
     Recorder.results.clear
   end

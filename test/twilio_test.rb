@@ -54,7 +54,7 @@ class TwilioTest < Smswire::TestCase
     params = URI.decode_www_form(body)
     assert_includes params, ["MessagingServiceSid", "MG00000000000000000000000000000000"]
     refute params.any? { |key, _| key == "From" }
-    assert_equal %w[https://a.example/1.png https://a.example/2.png], params.select { _1[0] == "MediaUrl" }.map(&:last)
+    assert_equal %w[https://a.example/1.png https://a.example/2.png], params.select { |key, _| key == "MediaUrl" }.map(&:last)
     assert_includes params, ["ValidityPeriod", "600"]
     assert_includes params, ["StatusCallback", "https://app.example/sms/status"]
   end
