@@ -1,4 +1,5 @@
 require "bigdecimal"
+require "base64"
 
 module Smswire
   module Providers
@@ -53,8 +54,31 @@ module Smswire
         pairs << ["Body", message.body] if message.body.present?
         message.media_urls.each { |url| pairs << ["MediaUrl", url] }
         pairs << ["ValidityPeriod", message.validity_period.to_i.to_s] if message.validity_period
-        pairs << ["StatusCallback", options[:status_callback]] if options[:status_callback]
+        callback = message.status_callback_url || options[:status_callback]
+        pairs << ["StatusCallback", callback] if callback
         pairs
+      end
+
+      # Twilio signs callbacks with HMAC-SHA1 over the full URL followed by
+      # each POST parameter's name and value, sorted by name.
+      def verify_signature!(request, url:)
+        signature = request.headers["X-Twilio-Signature"].to_s
+        data = url + request.request_parameters.sort.map { |key, value| "#{key}#{value}" }.join
+        expected = Base64.strict_encode64(OpenSSL::HMAC.digest("SHA1", auth_token, data))
+        return if signature.present? && ActiveSupport::SecurityUtils.secure_compare(expected, signature)
+
+        raise SignatureError, "Invalid X-Twilio-Signature"
+      end
+
+      def parse_status_callback(request)
+        params = request.request_parameters
+        StatusUpdate.new(
+          provider_id: params["MessageSid"] || params["SmsSid"],
+          status: STATUSES.fetch((params["MessageStatus"] || params["SmsStatus"]).to_s, :accepted),
+          error_code: params["ErrorCode"].presence,
+          error_message: params["ErrorMessage"].presence,
+          raw: params.to_h
+        )
       end
 
       private

@@ -290,22 +290,25 @@ Three tables, installed by `rails g smswire:install`.
 
 | column | type | notes |
 |---|---|---|
-| id | uuid/bigint | |
+| id | app default | follows the app's generator `primary_key_type`, like Active Storage |
 | messenger, action | string | e.g. `OrderMessenger`, `shipped` |
-| to, from | string | E.164 |
-| recipient_type, recipient_id | string, string | polymorphic, optional |
+| to_number, from_number | string | E.164; named to avoid the reserved words `to` and `from` |
+| messaging_service | string | |
+| recipient_type, recipient_id | string, app key type | polymorphic, optional; set only for persisted Active Record recipients |
 | category | string | `transactional`, `otp`, `marketing`, custom |
 | body | text | nullable; `store_bodies` config defaults to true, with a per-category override so OTP bodies can be excluded |
 | segments, encoding | integer, string | |
 | provider | string | |
 | provider_id | string | indexed, unique with provider |
-| status | string | normalized vocabulary |
+| status | string | `pending`, `suppressed`, then the normalized vocabulary; only moves forward |
 | error_code, error_message | string, text | provider raw code + normalized message |
-| idempotency_key | string | unique index |
+| idempotency_key | string | unique index; cleared on the old row when the dedupe window expires |
 | price_amount, price_currency | decimal, string | if the provider reports it |
 | metadata | json | app-supplied |
 | scheduled_at, sent_at, delivered_at, failed_at | datetime | |
 | attempts | integer | |
+| claimed_at | datetime | send claim; released on transient errors, expires after two minutes |
+| status_updated_at | datetime | |
 | created_at, updated_at | datetime | |
 
 **smswire_consents**
@@ -455,7 +458,9 @@ Smswire.configure do |c|
   c.body_whitespace = :strip          # or :squish, :preserve
   c.deliver_later_queue = :default
   # Smswire.register_interceptor / register_observer, per environment
-  c.callbacks_host = "https://app.example.com"   # used to build StatusCallback URLs
+  c.callbacks_url = "https://app.example.com/smswire"  # engine mount URL; builds StatusCallback URLs
+  c.persist_deliveries = true
+  c.verify_callback_signatures = true
 end
 ```
 
@@ -521,6 +526,11 @@ next. No phase includes a calendar estimate.
 - Accept: a delivery row moves `pending → accepted → delivered` from a
   replayed Twilio callback fixture; duplicate sends inside the window are
   refused.
+- Status: implemented. Rows are claimed atomically before sending, so a
+  transient-error retry reuses its row and two workers never send the same
+  claimed message. Callback URLs carry the delivery id to survive the race
+  between the provider's response and its first callback. Rejected messages
+  are not persisted; they are reported through `reject.smswire`.
 
 ### Phase 3: Consent and inbound keywords
 
@@ -564,13 +574,14 @@ next. No phase includes a calendar estimate.
 
 ## 11. Open decisions
 
-These do not block Phase 0 or 1 but should be settled before Phase 2:
+Decisions 1 to 3 are settled. The rest should be settled before 1.0.
 
 1. **Name.** `smswire` is recommended; `textable` and `smsable` are the
    fallbacks. Decide before the pre-release push.
-2. **Body storage default.** Spec says `true` with OTP excluded. Privacy-first
-   alternative is `false` by default.
-3. **UUID vs. bigint** primary keys for the engine tables. Spec leans UUID.
+2. **Body storage default.** Settled in Phase 2: `store_bodies = true`, with
+   `categories: { otp: { store_body: false } }` as the shipped default.
+3. **UUID vs. bigint** primary keys. Settled in Phase 2: the migration follows
+   the app's generator `primary_key_type`, so both work without a choice here.
 4. **Phone validation**: `phonelib` soft dependency vs. a vendored minimal
    E.164 validator.
 5. **Whether `deliver_now` should be allowed in production** or warn, given
