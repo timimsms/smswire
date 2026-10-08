@@ -1,6 +1,30 @@
 module Smswire
   class Configuration
     WHITESPACE_MODES = %i[strip squish preserve].freeze
+    CONSENT_RULES = %i[allow_unless_opted_out require_opted_in none].freeze
+
+    # Shipped category rules. Settings in +categories+ are merged over these
+    # per key, so overriding one category leaves the others intact.
+    # Marketing quiet hours follow the US federal TCPA window (8am to 9pm
+    # recipient time); some states are stricter.
+    DEFAULT_CATEGORIES = {
+      otp: {consent: :allow_unless_opted_out, store_body: false},
+      transactional: {consent: :allow_unless_opted_out},
+      marketing: {consent: :require_opted_in, quiet_hours: "21:00".."08:00"},
+      compliance: {consent: :none}
+    }.freeze
+
+    DEFAULT_KEYWORDS = {
+      opt_out: %w[STOP STOPALL UNSUBSCRIBE CANCEL END QUIT OPTOUT REVOKE],
+      opt_in: %w[START YES UNSTOP],
+      help: %w[HELP INFO]
+    }.freeze
+
+    DEFAULT_KEYWORD_REPLIES = {
+      opt_out: "You have been unsubscribed from %{program} messages and will not receive any more. Reply START to resubscribe.",
+      opt_in: "You are subscribed to %{program} messages again. Reply STOP to unsubscribe, HELP for help.",
+      help: "%{program}: Reply STOP to unsubscribe. Msg & data rates may apply."
+    }.freeze
     PHONE_VALIDATORS = %i[auto phonelib e164].freeze
 
     # Provider name used when a message or sender does not name one.
@@ -59,8 +83,29 @@ module Smswire
     # categories: { otp: { store_body: false } }.
     attr_accessor :store_bodies
 
-    # Per-category settings. Phase 2 honors :store_body.
+    # Per-category settings merged over DEFAULT_CATEGORIES:
+    #   consent:     :allow_unless_opted_out, :require_opted_in, or :none
+    #   quiet_hours: "21:00".."08:00" in the recipient's time zone, or nil
+    #   rate_limit:  { max: 3, per: 1.day, exceed: :defer }  (or :reject)
+    #   store_body:  overrides store_bodies
     attr_accessor :categories
+
+    # Check consent before sending and record carrier opt-outs. Turn off
+    # only when another system, such as Twilio Advanced Opt-Out, owns consent.
+    attr_accessor :enforce_consent
+
+    # Time zone for quiet hours when the recipient has none. Defaults to
+    # Time.zone.
+    attr_accessor :default_time_zone
+
+    # Inbound keyword sets: { opt_out: [...], opt_in: [...], help: [...] }.
+    attr_accessor :keywords
+
+    # Auto-reply bodies per keyword kind; %{program} is replaced by
+    # program_name. Set a kind to nil to send no reply.
+    attr_accessor :keyword_replies
+
+    attr_accessor :program_name
 
     def initialize
       @default_provider = nil
@@ -81,7 +126,12 @@ module Smswire
       @callbacks_url = nil
       @verify_callback_signatures = true
       @store_bodies = true
-      @categories = {otp: {store_body: false}}
+      @categories = {}
+      @enforce_consent = true
+      @default_time_zone = nil
+      @keywords = DEFAULT_KEYWORDS.transform_values(&:dup)
+      @keyword_replies = DEFAULT_KEYWORD_REPLIES.dup
+      @program_name = nil
     end
 
     def phone_validator=(value)
@@ -101,12 +151,42 @@ module Smswire
     end
 
     def category_options(category)
-      (categories[category.to_s.to_sym] || categories[category.to_s] || {}).to_h.symbolize_keys
+      key = category.to_s.to_sym
+      custom = (categories[key] || categories[category.to_s] || {}).to_h.symbolize_keys
+      options = DEFAULT_CATEGORIES.fetch(key, {}).merge(custom)
+      consent = options.fetch(:consent, :allow_unless_opted_out).to_sym
+      unless CONSENT_RULES.include?(consent)
+        raise ConfigurationError, "Unknown consent rule #{consent.inspect} for category #{key}"
+      end
+      options.merge(consent:)
+    end
+
+    def time_zone
+      zone = default_time_zone || Time.zone || "UTC"
+      ActiveSupport::TimeZone[zone] || raise(ConfigurationError, "Unknown time zone #{zone.inspect}")
+    end
+
+    def consent_scopes
+      scopes = senders.values.filter_map { |options| options.to_h.symbolize_keys[:consent_scope]&.to_s }
+      (["default"] + scopes).uniq
+    end
+
+    def keyword_reply(kind)
+      template = keyword_replies[kind.to_sym] or return nil
+      format(template, program: program_name || default_program_name)
     end
 
     def store_body?(category)
       setting = category_options(category)[:store_body]
       setting.nil? ? store_bodies : setting
+    end
+
+    def default_program_name
+      if defined?(::Rails) && ::Rails.respond_to?(:application) && ::Rails.application
+        ::Rails.application.class.module_parent_name.titleize
+      else
+        "our"
+      end
     end
 
     def provider_options(name)

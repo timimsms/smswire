@@ -36,5 +36,5 @@ class Smswire::TestCase < ActiveSupport::TestCase
   include Smswire::TestHelper
   include ConfigHelpers
 
-  setup { Smswire::Delivery.delete_all }
+  setup { [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all) }
 end
