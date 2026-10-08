@@ -196,11 +196,15 @@ end
   `deliver_later` is called, exactly like `mail`.
 - Templates live at `app/views/<messenger_name>/<action>.text.erb`. I18n via
   `t(".key")` scoped the same way Action Mailer scopes it.
-- Body whitespace is squished by default (configurable) since SMS has no
-  layout. Rendering computes `segments` and `encoding` (GSM-7 vs. UCS-2) on the
+- Body whitespace is cleaned with `body_whitespace = :strip` by default:
+  trailing spaces on each line are removed, three or more newlines collapse to
+  two, and the ends are stripped. `:squish` and `:preserve` are the
+  alternatives. Layouts are supported, which suits a shared opt-out footer.
+  Rendering computes `segments` and `encoding` (GSM-7 vs. UCS-2) on the
   message so previews, logs, and callbacks can report them.
-- `default` supports `from`, `category`, `sender`, `provider`,
-  `messaging_service`, `validity_period`, `quiet_hours`.
+- `default` supports `from`, `category`, `provider`, `messaging_service`,
+  `metadata`, `validity_period`. A named sender is given as `from: :name`.
+  `quiet_hours` joins in Phase 3.
 
 ### 6.2 Message object
 
@@ -208,9 +212,13 @@ end
 ActiveJob (GlobalID for the recipient object, primitives for the rest). It
 exposes:
 
-- `deliver_now` runs the pipeline inline and returns a `Smswire::Delivery`.
+- `deliver_now` runs the pipeline inline and returns a `Smswire::Result`
+  (status, message, receipt, error). From Phase 2 the result also carries the
+  persisted `Smswire::Delivery`.
 - `deliver_later(wait:, wait_until:, queue:, priority:)` enqueues
-  `Smswire::DeliveryJob`. The job re-runs the pipeline, so consent and quiet
+  `Smswire::DeliveryJob` with the messenger name, action, params, and
+  arguments, like Action Mailer. Arguments must be ActiveJob-serializable.
+  The job re-runs the action and the pipeline, so consent and quiet
   hours are evaluated at send time, not enqueue time.
 - `segments`, `encoding`, `length` computed at render.
 - `idempotency_key` defaults to a digest of messenger, action, recipient, and
@@ -228,6 +236,8 @@ halt with a typed outcome so callers and observers can distinguish:
 - `:deferred_quiet_hours` (re-enqueued for the next allowed window)
 - `:deferred_rate_limited`
 - `:suppressed_by_interceptor` (dev sandbox, allowlist)
+- `:rejected_empty_body` (no body and no media)
+- `:skipped` (the action returned without calling `text`)
 - `:duplicate`
 - `:accepted` / `:failed`
 
@@ -431,7 +441,7 @@ Smswire.configure do |c|
 
   c.recipient_resolver = ->(obj) { obj.respond_to?(:mobile_phone) ? obj.mobile_phone : obj.phone_number }
   c.default_region = "US"             # for parsing national-format numbers
-  c.phone_validator = :phonelib        # or :e164_regex (no extra dependency)
+  c.phone_validator = :auto            # :phonelib, or :e164 (built-in, no extra dependency)
 
   c.categories = {
     otp:           { consent: :allow_unless_opted_out, quiet_hours: nil,            store_body: false },
@@ -440,17 +450,20 @@ Smswire.configure do |c|
   }
 
   c.dedupe_window = 10.minutes
-  c.retry = { attempts: 5, wait: :polynomially_longer }
+  c.retry_attempts = 5                # total attempts for transient errors; polynomial backoff
   c.store_bodies = true
-  c.interceptors = []                 # per-env additions in config/environments/*.rb
+  c.body_whitespace = :strip          # or :squish, :preserve
+  c.deliver_later_queue = :default
+  # Smswire.register_interceptor / register_observer, per environment
   c.callbacks_host = "https://app.example.com"   # used to build StatusCallback URLs
 end
 ```
 
 ### 7.1 Dependency policy
 
-Runtime: `activesupport`, `activejob`, `activerecord`, `actionview`,
-`railties` (all `>= 7.1`). Optional: `phonelib` (soft dependency, detected at
+Runtime: `actionpack` (for AbstractController and Action View rendering),
+`activejob`, `activesupport`, `railties` (all `>= 7.1, < 9`), and `zeitwerk`.
+`activerecord` joins in Phase 2 with the persistence tables. Optional: `phonelib` (soft dependency, detected at
 load). No provider SDKs. No HTTP client gem.
 
 ### 7.2 Recipient resolution
@@ -496,6 +509,8 @@ next. No phase includes a calendar estimate.
 - `TestHelper`, RSpec matchers, interceptors and observers.
 - Accept: a dummy-app messenger renders a template, sends through Twilio
   against WebMock, and the full test-helper surface passes.
+- Status: implemented. Built-in phone validation accepts E.164 input and
+  North American national formats; other national formats need `phonelib`.
 
 ### Phase 2: Persistence and status tracking
 
