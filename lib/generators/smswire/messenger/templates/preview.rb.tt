@@ -1,0 +1,13 @@
+# Preview at /smswire/previews/<%= file_path %>
+<% module_namespacing do -%>
+class <%= class_name.delete_suffix("Messenger") %>MessengerPreview < Smswire::Preview
+<% actions.each_with_index do |action, index| -%>
+<% if index > 0 -%>
+
+<% end -%>
+  def <%= action %>
+    <%= class_name.delete_suffix("Messenger") %>Messenger.<%= action %>("<%= sample_number %>")
+  end
+<% end -%>
+end
+<% end -%>

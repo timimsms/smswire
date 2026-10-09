@@ -10,6 +10,7 @@ require "active_job"
 loader = Zeitwerk::Loader.for_gem
 loader.inflector.inflect("http" => "HTTP", "rspec" => "RSpec")
 loader.ignore(
+  "#{__dir__}/generators",
   "#{__dir__}/smswire/errors.rb",
   "#{__dir__}/smswire/engine.rb",
   "#{__dir__}/smswire/rspec.rb"

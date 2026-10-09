@@ -107,6 +107,12 @@ module Smswire
 
     attr_accessor :program_name
 
+    # Development tools served by the engine. Both default to true in
+    # development only. Set them in config/application.rb or an environment
+    # file as config.smswire.show_previews, since preview paths are
+    # registered for autoloading before initializers run.
+    attr_accessor :show_previews, :show_inbox, :preview_paths
+
     def initialize
       @default_provider = nil
       @providers = {}
@@ -132,6 +138,9 @@ module Smswire
       @keywords = DEFAULT_KEYWORDS.transform_values(&:dup)
       @keyword_replies = DEFAULT_KEYWORD_REPLIES.dup
       @program_name = nil
+      @show_previews = false
+      @show_inbox = false
+      @preview_paths = []
     end
 
     def phone_validator=(value)

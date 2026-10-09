@@ -1,0 +1,36 @@
+# Smswire adapter for <%= class_name %>.
+#
+# Options come from Smswire.config.providers[:<%= file_name %>].
+# Raise Smswire::TransientError for network failures and 5xx responses,
+# Smswire::ThrottledError (with retry_after) for rate limiting, and
+# Smswire::PermanentError (with a reason) when retrying cannot help.
+class <%= provider_class %> < Smswire::Providers::Base
+  API_URL = "https://api.example.com/messages".freeze
+
+  def deliver(message)
+    response = Smswire::HTTP.post_form(API_URL, [
+      ["to", message.to],
+      ["from", message.from.to_s],
+      ["body", message.body.to_s]
+    ], headers: {"Authorization" => "Bearer #{options.fetch(:api_key)}"}, provider: name)
+
+    json = Smswire::HTTP.parse_json(response.body)
+    case response.code.to_i
+    when 200..299
+      receipt(provider_id: json["id"], status: :accepted, segments: message.segments, raw: json)
+    when 429
+      raise Smswire::ThrottledError.new("<%= class_name %> rate limited", retry_after: response["Retry-After"]&.to_i, provider: name)
+    when 500..599
+      raise Smswire::TransientError.new("<%= class_name %> #{response.code}", provider: name, http_status: response.code.to_i)
+    else
+      raise Smswire::PermanentError.new("<%= class_name %> #{response.code}: #{json["error"]}",
+        reason: :rejected, provider: name, http_status: response.code.to_i, raw: json)
+    end
+  end
+
+  # Add :status_callbacks and :inbound here once verify_signature!,
+  # parse_status_callback, and parse_inbound are implemented.
+  def capabilities
+    Set.new
+  end
+end
