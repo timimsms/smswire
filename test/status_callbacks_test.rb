@@ -1,12 +1,7 @@
 require "test_helper"
 require "base64"
 
-class StatusCallbacksTest < ActionDispatch::IntegrationTest
-  include Smswire::TestHelper
-  include ConfigHelpers
-
-  setup { [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all) }
-
+class StatusCallbacksTest < Smswire::IntegrationTest
   def sign(url, params, token: "secret")
     data = url + params.sort.map { |key, value| "#{key}#{value}" }.join
     Base64.strict_encode64(OpenSSL::HMAC.digest("SHA1", token, data))

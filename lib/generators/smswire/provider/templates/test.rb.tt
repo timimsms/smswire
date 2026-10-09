@@ -1,0 +1,25 @@
+require "test_helper"
+require "webmock/minitest"
+
+class <%= provider_class %>Test < ActiveSupport::TestCase
+  setup do
+    @provider = <%= provider_class %>.new({api_key: "test-key"}, name: :<%= file_name %>)
+    @message = Smswire::Message.new(to: "+15555550100", from: "+15555550199", body: "Hello")
+  end
+
+  test "delivers and returns a receipt" do
+    stub_request(:post, <%= provider_class %>::API_URL).to_return(status: 200, body: {id: "msg_1"}.to_json)
+    receipt = @provider.deliver(@message)
+    assert_equal "msg_1", receipt.provider_id
+  end
+
+  test "5xx responses are transient" do
+    stub_request(:post, <%= provider_class %>::API_URL).to_return(status: 503)
+    assert_raises(Smswire::TransientError) { @provider.deliver(@message) }
+  end
+
+  test "4xx responses are permanent" do
+    stub_request(:post, <%= provider_class %>::API_URL).to_return(status: 400, body: {error: "invalid"}.to_json)
+    assert_raises(Smswire::PermanentError) { @provider.deliver(@message) }
+  end
+end

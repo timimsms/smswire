@@ -393,7 +393,23 @@ assert_no_sms_delivered
 Previews mirror Action Mailer previews, at `test/messengers/previews/` or
 `spec/messengers/previews/`, served at `/smswire/previews` in development.
 Each preview renders the body in a phone frame, shows segment count, encoding,
-character budget remaining, and the resolved sender.
+character budget remaining, and the resolved sender, and names any characters
+that force UCS-2. Previews build the message without running interceptors or
+sending.
+
+The development inbox at `/smswire/inbox` lists recent deliveries and inbound
+messages, and has a form that simulates a reply such as STOP through the same
+handling as the inbound webhook.
+
+Both tools are enabled with `config.smswire.show_previews` and
+`config.smswire.show_inbox` in `config/application.rb` or an environment
+file, and default to true in development only. Preview paths are registered
+for autoloading before initializers run, as Action Mailer does, so they cannot
+be set from `config/initializers`.
+
+The allowlist interceptor either suppresses messages to unlisted numbers or,
+with `redirect_to:`, reroutes them to one number with the original recipient
+prefixed to the body.
 
 ### 6.8 Observability
 
@@ -435,7 +451,9 @@ quiet hours, persistence, and status tracking all apply. The resulting
   route mount, credentials scaffold hints.
 - `rails g smswire:messenger Order shipped delivered` — class, templates,
   preview, test.
-- `rails g smswire:provider Acme` — adapter skeleton with contract tests.
+- `rails g smswire:provider Acme` — adapter skeleton in `app/sms_providers`,
+  a WebMock test, and a registration line in the initializer. The shared
+  adapter contract suite arrives in Phase 5.
 
 ## 7. Configuration surface
 
@@ -567,6 +585,7 @@ next. No phase includes a calendar estimate.
 - Previews route and UI, local inbox UI, generators, allowlist interceptor.
 - Accept: `rails g smswire:messenger` output renders in previews with correct
   segment and encoding display; development deliveries appear in the inbox.
+- Status: implemented.
 
 ### Phase 5: Breadth
 
