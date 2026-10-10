@@ -35,6 +35,31 @@ class NoticedTest < Smswire::TestCase
     assert_empty sms_deliveries
   end
 
+  test "Noticed's wait delays only Noticed's job" do
+    notifier = Class.new(Noticed::Event) do
+      def self.name = "DelayedShippedNotifier"
+
+      deliver_by :smswire do |config|
+        config.messenger = "OrderMessenger"
+        config.action = :notify_shipped
+        config.wait = 5.minutes
+      end
+    end
+    Object.const_set(:DelayedShippedNotifier, notifier)
+
+    travel_to Time.utc(2026, 1, 15, 12) do
+      perform_enqueued_jobs(only: Noticed::EventJob) { notifier.with(order_number: "R8").deliver(@customer) }
+      noticed_job = enqueued_jobs.find { |job| job[:job] == Noticed::DeliveryMethods::Smswire }
+      assert_equal 5.minutes.from_now.to_f, noticed_job[:at]
+
+      perform_enqueued_jobs(only: Noticed::DeliveryMethods::Smswire)
+      sms_job = enqueued_jobs.find { |job| job[:job] == Smswire::DeliveryJob }
+      assert_nil sms_job[:at], "Smswire's job must not add a second delay"
+    end
+  ensure
+    Object.send(:remove_const, :DelayedShippedNotifier) if Object.const_defined?(:DelayedShippedNotifier)
+  end
+
   test "custom args, params, and job options" do
     notifier = Class.new(Noticed::Event) do
       def self.name = "CustomShippedNotifier"
@@ -45,7 +70,7 @@ class NoticedTest < Smswire::TestCase
         config.args = -> { [recipient.phone_number] }
         config.kwargs = -> { {window: "9-11am"} }
         config.params = -> { {order_number: "R7"} }
-        config.queue = :sms
+        config.sms_queue = :sms
       end
     end
     Object.const_set(:CustomShippedNotifier, notifier)

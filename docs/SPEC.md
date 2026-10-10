@@ -462,7 +462,8 @@ class OrderShippedNotifier < Noticed::Event
     config.messenger = "OrderMessenger"
     config.action    = :shipped
     config.params    = -> { {order: record} }
-    # Optional: config.category, config.wait, config.if
+    # Optional: config.args, config.kwargs, config.params, config.sms_queue;
+    # Noticed options such as config.wait and config.if apply to its own job
   end
 end
 ```
@@ -634,6 +635,23 @@ next. No phase includes a calendar estimate.
 - Guides: getting started, migrating from direct twilio-ruby, migrating from
   Noticed `twilio_messaging`, compliance primer, provider authoring.
 - `1.0.0` once the adapter contract and schema are considered stable.
+- Status: guides written in `docs/guides`, with a test that every setting,
+  constant, and generator they name exists. Compliance research changed the
+  defaults: HELP replies include `support_contact`, the opt-out confirmation
+  follows CTIA wording, keywords ignore spaces ("opt out"), and
+  `opt_out_all_scopes` prepares for the FCC revoke-all provision.
+  `Smswire.verify_credentials!` from section 6.8 is implemented. Release
+  steps are in `RELEASING.md`; publishing 1.0 is left to the maintainer.
+
+### Known limitations at 1.0
+
+- Free-text opt-outs ("please stop texting me") are stored but not acted on;
+  the compliance guide shows an observer for review.
+- Rate limits can be exceeded briefly by concurrent sends.
+- Vonage receipts for the second and later parts of a long message are
+  acknowledged but not matched to the delivery.
+- Vonage uses the SMS API, not the newer Messages API, and has no MMS.
+- Telnyx ignores `validity_period`.
 
 ## 10. Risks and mitigations
 
@@ -647,7 +665,8 @@ next. No phase includes a calendar estimate.
 
 ## 11. Open decisions
 
-Decisions 1 to 3 are settled. The rest should be settled before 1.0.
+Decisions 1 to 3 are settled. Decisions 4 to 6 are proposed as settled in
+Phase 6, matching the implementation; confirm them before tagging 1.0.
 
 1. **Name.** `smswire` is recommended; `textable` and `smsable` are the
    fallbacks. Decide before the pre-release push.
@@ -655,10 +674,13 @@ Decisions 1 to 3 are settled. The rest should be settled before 1.0.
    `categories: { otp: { store_body: false } }` as the shipped default.
 3. **UUID vs. bigint** primary keys. Settled in Phase 2: the migration follows
    the app's generator `primary_key_type`, so both work without a choice here.
-4. **Phone validation**: `phonelib` soft dependency vs. a vendored minimal
-   E.164 validator.
-5. **Whether `deliver_now` should be allowed in production** or warn, given
-   Noticed's stance that inline delivery slows requests. Spec allows it; the
-   Noticed adapter always uses `deliver_later`.
-6. **MMS in 1.0.** `media_urls` is on the message object; whether adapters
-   must support it for 1.0 is open.
+4. **Phone validation.** Proposed: both. The built-in validator handles E.164
+   input and North American national formats with no dependency; `phonelib`
+   is used automatically when it is in the bundle, for other regions.
+5. **`deliver_now` in production.** Proposed: allowed without a warning. It
+   returns a `Result`, which is useful for interactive flows such as
+   verification codes. Guides recommend `deliver_later`, and the Noticed
+   adapter always uses it.
+6. **MMS in 1.0.** Proposed: a capability, not a requirement. Twilio and
+   Telnyx send `media_urls`; Vonage's SMS API does not and does not declare
+   `:mms`. The contract does not require it.

@@ -43,6 +43,19 @@ module Smswire
       raise TransientError.new("#{error.class}: #{error.message}", provider:)
     end
 
+    def get(url, basic_auth: nil, headers: {}, open_timeout: 5, read_timeout: 15, provider: nil)
+      uri = URI(url)
+      request = Net::HTTP::Get.new(uri, {"User-Agent" => "smswire/#{Smswire::VERSION}",
+                                         "Accept" => "application/json"}.merge(headers))
+      request.basic_auth(*basic_auth) if basic_auth
+
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout:, read_timeout:) do |http|
+        http.request(request)
+      end
+    rescue *NETWORK_ERRORS => error
+      raise TransientError.new("#{error.class}: #{error.message}", provider:)
+    end
+
     def parse_json(body)
       JSON.parse(body.to_s)
     rescue JSON::ParserError

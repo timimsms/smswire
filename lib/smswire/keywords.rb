@@ -3,8 +3,9 @@ module Smswire
   # consent, and sends the configured auto-reply.
   #
   # A keyword matches only when it is the whole message, ignoring case,
-  # surrounding whitespace, and surrounding punctuation, which is how
-  # carriers and Twilio match them.
+  # spaces, and surrounding punctuation, so "Opt out." matches OPTOUT and
+  # "stop all" matches STOPALL. Free-text requests such as "please stop
+  # texting me" are recorded but not matched; see docs/guides/compliance.md.
   module Keywords
     STORED = {opt_out: "stop", opt_in: "start", help: "help"}.freeze
 
@@ -12,11 +13,11 @@ module Smswire
 
     # Returns [kind, word] or nil.
     def classify(body)
-      word = body.to_s.strip.gsub(/\A[^[:alnum:]]+|[^[:alnum:]]+\z/, "").upcase
+      word = body.to_s.strip.gsub(/\A[^[:alnum:]]+|[^[:alnum:]]+\z/, "").gsub(/[[:space:]-]+/, "").upcase
       return nil if word.empty?
 
       Smswire.config.keywords.each do |kind, words|
-        return [kind.to_sym, word] if words.map(&:upcase).include?(word)
+        return [kind.to_sym, word] if words.map { |candidate| candidate.upcase.delete(" -") }.include?(word)
       end
       nil
     end
@@ -29,7 +30,7 @@ module Smswire
       scope = Consent.scope_for_sender(number: record.to_number, messaging_service: record.messaging_service)
       case kind
       when :opt_out
-        if word == "STOPALL"
+        if word == "STOPALL" || Smswire.config.opt_out_all_scopes
           Consent.opt_out_everywhere!(phone, source: :keyword, keyword: word)
         else
           Consent.opt_out!(phone, scope:, source: :keyword, keyword: word)

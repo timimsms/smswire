@@ -20,11 +20,15 @@ module Smswire
       help: %w[HELP INFO]
     }.freeze
 
+    # CTIA guidance: the opt-out confirmation names the brand, confirms the
+    # removal, and says no further messages will be sent; the HELP reply
+    # names the brand and a support contact.
     DEFAULT_KEYWORD_REPLIES = {
-      opt_out: "You have been unsubscribed from %{program} messages and will not receive any more. Reply START to resubscribe.",
-      opt_in: "You are subscribed to %{program} messages again. Reply STOP to unsubscribe, HELP for help.",
-      help: "%{program}: Reply STOP to unsubscribe. Msg & data rates may apply."
+      opt_out: "%{program}: You are unsubscribed and will no longer receive any further messages. Reply START to resubscribe.",
+      opt_in: "%{program}: You are subscribed again. Reply HELP for help, STOP to unsubscribe. Msg & data rates may apply.",
+      help: "%{program}: For help, contact %{contact}. Reply STOP to unsubscribe. Msg & data rates may apply."
     }.freeze
+    HELP_WITHOUT_CONTACT = "%{program}: Reply STOP to unsubscribe. Msg & data rates may apply.".freeze
     PHONE_VALIDATORS = %i[auto phonelib e164].freeze
 
     # Provider name used when a message or sender does not name one.
@@ -107,6 +111,15 @@ module Smswire
 
     attr_accessor :program_name
 
+    # Phone number, email, or URL for customer care, used in HELP replies
+    # as %{contact}. CTIA guidance expects one.
+    attr_accessor :support_contact
+
+    # When true, STOP to any sender opts the number out of every consent
+    # scope, as STOPALL does. The FCC rule applying a revocation to all of a
+    # sender's unrelated messages is delayed to January 31, 2027.
+    attr_accessor :opt_out_all_scopes
+
     # Development tools served by the engine. Both default to true in
     # development only. Set them in config/application.rb or an environment
     # file as config.smswire.show_previews, since preview paths are
@@ -138,6 +151,8 @@ module Smswire
       @keywords = DEFAULT_KEYWORDS.transform_values(&:dup)
       @keyword_replies = DEFAULT_KEYWORD_REPLIES.dup
       @program_name = nil
+      @support_contact = nil
+      @opt_out_all_scopes = false
       @show_previews = false
       @show_inbox = false
       @preview_paths = []
@@ -182,7 +197,11 @@ module Smswire
 
     def keyword_reply(kind)
       template = keyword_replies[kind.to_sym] or return nil
-      format(template, program: program_name || default_program_name)
+      if template.include?("%{contact}") && support_contact.blank?
+        Smswire.logger.warn("[Smswire] Set config.support_contact; HELP replies should include a support contact.")
+        template = HELP_WITHOUT_CONTACT if template == DEFAULT_KEYWORD_REPLIES[:help]
+      end
+      format(template, program: program_name || default_program_name, contact: support_contact.to_s)
     end
 
     def store_body?(category)

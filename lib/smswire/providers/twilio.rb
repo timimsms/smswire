@@ -42,6 +42,11 @@ module Smswire
         Set[:mms, :status_callbacks, :inbound, :messaging_services]
       end
 
+      def verify_credentials!
+        url = "#{options.fetch(:api_base, API_BASE)}/Accounts/#{account_sid}.json"
+        check_credentials_response(HTTP.get(url, basic_auth: [account_sid, auth_token], provider: name))
+      end
+
       def form_for(message)
         pairs = [["To", message.to]]
         if message.messaging_service

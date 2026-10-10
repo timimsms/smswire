@@ -19,6 +19,14 @@ module Smswire
         Set.new
       end
 
+      # Make one authenticated, read-only call to the provider. Returns true,
+      # raises ConfigurationError when credentials are rejected or missing,
+      # or TransientError when the provider cannot be reached. Returns nil
+      # for adapters that cannot check.
+      def verify_credentials!
+        nil
+      end
+
       # Raise Smswire::SignatureError unless +request+ was signed by the
       # provider. +url+ is the public URL the provider posted to.
       def verify_signature!(request, url:)
@@ -41,6 +49,14 @@ module Smswire
       end
 
       private
+
+      def check_credentials_response(response)
+        status = response.code.to_i
+        return true if status.between?(200, 299)
+        raise TransientError.new("#{name} returned #{status}", provider: name, http_status: status) if status >= 500
+
+        raise ConfigurationError, "#{name} rejected the configured credentials (HTTP #{status})"
+      end
 
       def receipt(**attributes)
         Receipt.new(provider: name, **attributes)

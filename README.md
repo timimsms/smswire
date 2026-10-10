@@ -10,8 +10,17 @@ consent and STOP / HELP / START handling, quiet hours, previews, and a
 [Noticed](https://github.com/excid3/noticed) delivery method are included.
 See the [specification](docs/SPEC.md) for the full design.
 
-**Status:** pre-release. Phases 1 to 5 of the spec are implemented; the
-published `0.0.1.pre` gem only reserves the name.
+**Status:** pre-release. All six phases of the spec are implemented; the
+published `0.0.1.pre` gem only reserves the name. See
+[RELEASING.md](RELEASING.md) for the release steps.
+
+## Guides
+
+- [Getting started](docs/guides/getting-started.md)
+- [Migrating from direct twilio-ruby calls](docs/guides/migrating-from-twilio-ruby.md)
+- [Migrating from Noticed's Twilio delivery method](docs/guides/migrating-from-noticed-twilio.md)
+- [Compliance primer](docs/guides/compliance.md)
+- [Writing a provider adapter](docs/guides/writing-a-provider.md)
 
 ## Requirements
 
