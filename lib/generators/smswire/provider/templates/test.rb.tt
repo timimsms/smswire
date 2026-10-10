@@ -2,24 +2,28 @@ require "test_helper"
 require "webmock/minitest"
 
 class <%= provider_class %>Test < ActiveSupport::TestCase
-  setup do
-    @provider = <%= provider_class %>.new({api_key: "test-key"}, name: :<%= file_name %>)
-    @message = Smswire::Message.new(to: "+15555550100", from: "+15555550199", body: "Hello")
-  end
+  include Smswire::TestHelper
+  include Smswire::ProviderContract
 
-  test "delivers and returns a receipt" do
-    stub_request(:post, <%= provider_class %>::API_URL).to_return(status: 200, body: {id: "msg_1"}.to_json)
-    receipt = @provider.deliver(@message)
-    assert_equal "msg_1", receipt.provider_id
-  end
+  def contract_provider_name = :<%= file_name %>
 
-  test "5xx responses are transient" do
-    stub_request(:post, <%= provider_class %>::API_URL).to_return(status: 503)
-    assert_raises(Smswire::TransientError) { @provider.deliver(@message) }
-  end
+  def contract_provider_options = {api_key: "test-key"}
 
-  test "4xx responses are permanent" do
-    stub_request(:post, <%= provider_class %>::API_URL).to_return(status: 400, body: {error: "invalid"}.to_json)
-    assert_raises(Smswire::PermanentError) { @provider.deliver(@message) }
+  # Stub the provider API for each contract outcome. Update the error
+  # payloads to the provider's real responses.
+  def stub_contract_send(outcome, message)
+    stub = stub_request(:post, <%= provider_class %>::API_URL)
+    error = ->(status, code) { stub.to_return(status:, body: {error: {code:}}.to_json) }
+    case outcome
+    when :success
+      stub.with(body: hash_including("to" => message.to, "body" => message.body))
+        .to_return(status: 200, body: {id: "msg_1"}.to_json)
+    when :invalid_number then error.call(400, "invalid_number")
+    when :opted_out then error.call(400, "opted_out")
+    when :authentication then stub.to_return(status: 401)
+    when :throttled then stub.to_return(status: 429)
+    when :server_error then stub.to_return(status: 503)
+    when :timeout then stub.to_timeout
+    end
   end
 end

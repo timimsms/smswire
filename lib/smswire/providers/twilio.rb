@@ -72,9 +72,12 @@ module Smswire
 
       def parse_status_callback(request)
         params = request.request_parameters
+        raw_status = (params["MessageStatus"] || params["SmsStatus"]).to_s
+        return nil if raw_status.empty? || raw_status == "received"
+
         StatusUpdate.new(
           provider_id: params["MessageSid"] || params["SmsSid"],
-          status: STATUSES.fetch((params["MessageStatus"] || params["SmsStatus"]).to_s, :accepted),
+          status: STATUSES.fetch(raw_status, :accepted),
           error_code: params["ErrorCode"].presence,
           error_message: params["ErrorMessage"].presence,
           raw: params.to_h
@@ -83,6 +86,8 @@ module Smswire
 
       def parse_inbound(request)
         params = request.request_parameters
+        return nil unless params.key?("Body") && params["From"].present?
+
         Inbound.new(
           provider_id: params["MessageSid"] || params["SmsSid"],
           from: params["From"],

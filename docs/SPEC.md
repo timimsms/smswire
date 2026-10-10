@@ -282,6 +282,33 @@ Later: `sinch`, `bandwidth`, `aws_sns`, `plivo`, `messagebird`.
 All adapters use Net::HTTP (or a tiny shared client as in Noticed). No
 provider SDKs are runtime dependencies. Bodies are never logged.
 
+Adapter notes:
+
+- **Twilio** signs webhooks with HMAC-SHA1 over the URL and sorted POST
+  parameters. Messaging services map to `MessagingServiceSid`.
+- **Telnyx** signs webhooks with Ed25519 over `<timestamp>|<raw body>`,
+  verified against the account public key, with a five-minute timestamp
+  tolerance. Messaging services map to `messaging_profile_id`. A messaging
+  profile can post every event to one URL, so both webhook endpoints accept
+  both event kinds. Telnyx takes no validity period here, so it is ignored.
+- **Vonage** (SMS API) signs webhooks with sorted `&key=value` pairs using the
+  configured `signature_secret` and `signature_method` (`md5hash`, Vonage's
+  default, or an HMAC). Its send error 7, "number barred," also covers blocks
+  other than opt-outs, so it maps to `:unroutable` and never records an
+  opt-out. Long messages are billed as several parts with separate ids; the
+  receipt keeps the first, so receipts for later parts are acknowledged but
+  not matched. The API does not name a price currency.
+
+**Contract suite.** `Smswire::ProviderContract` is a Minitest module shipped
+in the gem. An adapter's test includes it and defines hooks that stub the
+provider for each outcome (`success`, `invalid_number`, `opted_out`,
+`authentication`, `throttled`, `server_error`, `timeout`) and build signed
+status and inbound requests. The suite checks receipts, the normalized status
+vocabulary, the error taxonomy and reasons, a full pipeline send, and, for
+declared capabilities, callback parsing and signature rejection. An adapter
+whose provider cannot report opt-outs at send time says so with
+`contract_reports_opt_outs?` rather than guessing.
+
 ### 6.5 Persistence
 
 Three tables, installed by `rails g smswire:install`.
@@ -441,9 +468,13 @@ end
 ```
 
 The adapter builds the message through the messenger, so templates, consent,
-quiet hours, persistence, and status tracking all apply. The resulting
-`Smswire::Delivery` id is written back to the Noticed notification via
-`error_handler`-style callbacks so the two records can be joined.
+quiet hours, persistence, and status tracking all apply. It always uses
+`deliver_later`, so Smswire's retry policy applies even though Noticed's own
+delivery jobs do not retry. The messenger receives the event params plus
+`notification`, `record`, and `recipient`, and the default action argument is
+the recipient. Each `Smswire::Delivery` records `noticed_notification_id` and
+`noticed_event_id` in its metadata, which joins the two records without a
+schema dependency between the gems.
 
 ### 6.10 Generators
 
@@ -452,8 +483,9 @@ quiet hours, persistence, and status tracking all apply. The resulting
 - `rails g smswire:messenger Order shipped delivered` — class, templates,
   preview, test.
 - `rails g smswire:provider Acme` — adapter skeleton in `app/sms_providers`,
-  a WebMock test, and a registration line in the initializer. The shared
-  adapter contract suite arrives in Phase 5.
+  a test that runs `Smswire::ProviderContract` against it with WebMock stubs,
+  and a registration line in the initializer. The generated pair passes the
+  contract as generated.
 
 ## 7. Configuration surface
 
@@ -594,6 +626,8 @@ next. No phase includes a calendar estimate.
 - `Noticed::DeliveryMethods::Smswire`.
 - Accept: the same dummy-app messenger passes the contract suite against all
   three real adapters (WebMock) and delivers through a Noticed notifier.
+- Status: implemented. Webhook endpoints share one controller, so a provider
+  that sends every event to one URL is routed by event kind.
 
 ### Phase 6: Release
 

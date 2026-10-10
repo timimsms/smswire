@@ -13,6 +13,7 @@ loader.ignore(
   "#{__dir__}/generators",
   "#{__dir__}/smswire/errors.rb",
   "#{__dir__}/smswire/engine.rb",
+  "#{__dir__}/smswire/noticed_delivery_method.rb",
   "#{__dir__}/smswire/rspec.rb"
 )
 loader.setup
