@@ -10,7 +10,17 @@ Dir[File.join(dummy_tmp, "test.sqlite3*")].each { |file| File.delete(file) }
 require_relative "dummy/config/environment"
 
 ActiveRecord::Migration.verbose = false
-ActiveRecord::MigrationContext.new(File.expand_path("../db/migrate", __dir__)).migrate
+ActiveRecord::MigrationContext.new([
+  File.expand_path("../db/migrate", __dir__),
+  Noticed::Engine.root.join("db/migrate").to_s
+]).migrate
+ActiveRecord::Schema.define do
+  create_table :customers, force: true do |t|
+    t.string :name
+    t.string :phone_number
+    t.string :time_zone
+  end
+end
 require "minitest/autorun"
 require "webmock/minitest"
 
@@ -42,7 +52,8 @@ end
 # Every test starts with empty Smswire tables.
 module DatabaseReset
   def before_setup
-    [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all)
+    [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage, Noticed::Notification, Noticed::Event, Customer]
+      .each(&:delete_all)
     super
   end
 end

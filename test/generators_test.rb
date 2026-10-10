@@ -57,6 +57,28 @@ class MessengerGeneratorTest < Rails::Generators::TestCase
 end
 
 class ProviderGeneratorTest < Rails::Generators::TestCase
+  ROOT = File.expand_path("../tmp/generators/provider-contract", __dir__)
+
+  # Generate an adapter once and load it with its test, so the generated
+  # code runs the provider contract as part of this suite.
+  def self.load_generated_contract!
+    return if defined?(::ContractcoProviderTest)
+
+    FileUtils.rm_rf(ROOT)
+    FileUtils.mkdir_p(File.join(ROOT, "config/initializers"))
+    File.write(File.join(ROOT, "config/initializers/smswire.rb"), "")
+    original_stdout, $stdout = $stdout, StringIO.new
+    begin
+      Smswire::Generators::ProviderGenerator.new(%w[Contractco], {}, destination_root: ROOT).invoke_all
+    ensure
+      $stdout = original_stdout
+    end
+    require File.join(ROOT, "app/sms_providers/contractco_provider.rb")
+    Smswire::Providers.register(:contractco, "ContractcoProvider")
+    require File.join(ROOT, "test/sms_providers/contractco_provider_test.rb")
+    ::ContractcoProviderTest.include(DatabaseReset)
+  end
+
   tests Smswire::Generators::ProviderGenerator
   destination File.expand_path("../tmp/generators/provider", __dir__)
 
@@ -107,3 +129,5 @@ class GeneratedMessengerPreviewTest < Smswire::IntegrationTest
     assert WelcomeMessenger.greet("+14155552671").deliver_now.accepted?
   end
 end
+
+ProviderGeneratorTest.load_generated_contract!

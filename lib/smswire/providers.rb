@@ -4,7 +4,9 @@ module Smswire
       test: "Smswire::Providers::Test",
       log: "Smswire::Providers::Log",
       null: "Smswire::Providers::Null",
-      twilio: "Smswire::Providers::Twilio"
+      twilio: "Smswire::Providers::Twilio",
+      telnyx: "Smswire::Providers::Telnyx",
+      vonage: "Smswire::Providers::Vonage"
     }
 
     class << self

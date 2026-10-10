@@ -21,6 +21,11 @@ class OrderMessenger < ApplicationMessenger
     text to: phone, body:
   end
 
+  # Called by OrderShippedNotifier through Noticed.
+  def notify_shipped(customer)
+    text to: customer, body: "Hi #{customer.name}, order #{params[:order_number]} has shipped."
+  end
+
   def deal(phone, body)
     text to: phone, body:, category: :marketing
   end

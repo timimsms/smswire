@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Telnyx adapter (Messaging API v2) with Ed25519 webhook verification.
+- Vonage adapter (SMS API) with signed webhook verification for `md5hash` and
+  HMAC methods.
+- `Smswire::ProviderContract`, a shipped Minitest suite every adapter passes;
+  the provider generator now writes a test that runs it.
+- `Noticed::DeliveryMethods::Smswire` for `deliver_by :smswire`, loaded when
+  Noticed is present.
+- Webhook endpoints accept both status and inbound events, for providers that
+  post everything to one URL.
+
 - Messenger previews at `<mount>/previews` with a phone frame, encoding,
   segment count, remaining characters, and the characters that force UCS-2.
 - Development inbox at `<mount>/inbox` listing deliveries and inbound
