@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/timimsms/smswire"
   spec.metadata["changelog_uri"] = "https://github.com/timimsms/smswire/blob/main/CHANGELOG.md"
   spec.metadata["bug_tracker_uri"] = "https://github.com/timimsms/smswire/issues"
-  spec.metadata["documentation_uri"] = "https://github.com/timimsms/smswire/blob/main/docs/SPEC.md"
+  spec.metadata["documentation_uri"] = "https://github.com/timimsms/smswire/tree/main/docs/guides"
   spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir.chdir(__dir__) do

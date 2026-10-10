@@ -16,8 +16,13 @@ Smswire.configure do |config|
   # Public URL where Smswire::Engine is mounted. Enables delivery status callbacks.
   # config.callbacks_url = "https://example.com/smswire"
 
-  # Used in STOP / START / HELP auto-replies.
+  # Used in STOP / START / HELP auto-replies. HELP replies should name a
+  # support contact (phone, email, or URL).
   # config.program_name = "<%= Rails.application.class.module_parent_name.titleize rescue "My App" %>"
+  # config.support_contact = "support@example.com"
+
+  # Verify provider credentials at boot (one read-only API call):
+  # Rails.application.config.after_initialize { Smswire.verify_credentials! } if Rails.env.production?
 
   # Category rules merge over the defaults (marketing requires opt-in and has quiet hours).
   # config.categories = {marketing: {rate_limit: {max: 3, per: 1.day}}}

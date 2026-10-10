@@ -46,8 +46,15 @@ module Smswire
         handle(response)
       end
 
+      BALANCE_URL = "https://rest.nexmo.com/account/get-balance".freeze
+
       def capabilities
         Set[:status_callbacks, :inbound]
+      end
+
+      def verify_credentials!
+        query = URI.encode_www_form(api_key: credential(:api_key), api_secret: credential(:api_secret))
+        check_credentials_response(HTTP.get("#{BALANCE_URL}?#{query}", provider: name))
       end
 
       def form_for(message)

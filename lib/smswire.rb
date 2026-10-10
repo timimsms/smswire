@@ -43,6 +43,12 @@ module Smswire
       config.logger || ActiveSupport::Logger.new($stdout)
     end
 
+    # Check the credentials of +provider+ (default: the default provider)
+    # with one read-only API call, for boot checks and health endpoints.
+    def verify_credentials!(provider = nil)
+      Providers.resolve(provider).verify_credentials!
+    end
+
     # Interceptors respond to +delivering_sms(message)+. They run after the
     # recipient is normalized and before the provider is called, and may
     # mutate the message or cancel it with +message.cancel!+.
