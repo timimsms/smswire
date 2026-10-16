@@ -14,6 +14,18 @@ module Smswire
 
     config.smswire = ActiveSupport::OrderedOptions.new
 
+    # Like Action Mailer: register preview directories for autoloading
+    # before Rails builds its autoload paths. Declared first because Rails
+    # chains an engine's initializers in declaration order.
+    initializer "smswire.preview_paths", before: :set_autoload_paths do |app|
+      options = app.config.smswire
+      development = ::Rails.env.development?
+      options.show_previews = development if options.show_previews.nil?
+      options.show_inbox = development if options.show_inbox.nil?
+      options.preview_paths ||= %w[test/messengers/previews spec/messengers/previews].map { |path| "#{app.root}/#{path}" }
+      app.config.paths.add "smswire/previews", with: options.preview_paths, autoload: true
+    end
+
     # Runs after config/initializers so app settings win over defaults.
     initializer "smswire.configure", after: :load_config_initializers do |app|
       app.config.smswire.each { |key, value| Smswire.config.public_send(:"#{key}=", value) }

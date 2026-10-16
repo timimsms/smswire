@@ -9,3 +9,6 @@
 /.rspec_status
 /Gemfile.lock
 .env
+/tmp/
+/test/tmp/
+/test/dummy/tmp/

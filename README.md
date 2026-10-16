@@ -10,12 +10,30 @@ consent and STOP / HELP / START handling, quiet hours, previews, and a
 [Noticed](https://github.com/excid3/noticed) delivery adapter follow in later
 phases of the [specification](docs/SPEC.md).
 
-**Status:** pre-release. Phases 1 to 3 of the spec are implemented; the
+**Status:** pre-release. Phases 1 to 4 of the spec are implemented; the
 published `0.0.1.pre` gem only reserves the name.
 
 ## Requirements
 
 Ruby 3.2+ and Rails 7.1 through 8.1.
+
+## Installation
+
+```ruby
+# Gemfile
+gem "smswire"
+```
+
+```
+bin/rails generate smswire:install
+bin/rails db:migrate
+bin/rails generate smswire:messenger Order shipped
+```
+
+The install generator copies the migrations, writes
+`config/initializers/smswire.rb` and `ApplicationMessenger`, and mounts the
+engine at `/smswire`. The messenger generator writes the class, a template per
+action, a preview, and a test.
 
 ## Usage
 
@@ -119,6 +137,31 @@ opt-out error from the provider records an opt-out automatically.
 Smswire provides these mechanisms. Your app is still responsible for its
 messaging program's legal compliance.
 
+### Development tools
+
+In development, open `/smswire/previews` to see every preview rendered in a
+phone frame with its encoding, segment count, and remaining characters, and
+which characters force UCS-2. Open `/smswire/inbox` to see what was sent and
+received, and to simulate a reply such as STOP.
+
+```ruby
+# test/messengers/previews/order_messenger_preview.rb
+class OrderMessengerPreview < Smswire::Preview
+  def shipped
+    OrderMessenger.with(order: Order.first).shipped(User.first)
+  end
+end
+```
+
+For staging, only let messages through to known numbers:
+
+```ruby
+Smswire.register_interceptor(
+  Smswire::Interceptors::Allowlist.new(numbers: ENV.fetch("SMS_ALLOWLIST", "").split(","))
+  # or redirect_to: "+15555550100" to reroute everything else to one phone
+)
+```
+
 ### Providers
 
 | Name | Use |
@@ -128,8 +171,9 @@ messaging program's legal compliance.
 | `:test` | Records messages in memory; test default |
 | `:null` | Accepts and discards |
 
-Register your own with `Smswire::Providers.register(:acme, AcmeProvider)`,
-subclassing `Smswire::Providers::Base`.
+Generate your own with `bin/rails generate smswire:provider Acme`, or
+subclass `Smswire::Providers::Base` and call
+`Smswire::Providers.register(:acme, "AcmeProvider")`.
 
 ### Testing
 

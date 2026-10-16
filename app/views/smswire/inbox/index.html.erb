@@ -1,0 +1,56 @@
+<% content_for :title, "SMS inbox" %>
+<h1>SMS inbox</h1>
+
+<div class="panel">
+  <strong>Simulate a reply</strong>
+  <p class="muted">Runs the same handling as the inbound webhook, including STOP, START, and HELP.</p>
+  <%= form_with url: inbox_inbound_path, class: "inline" do |form| %>
+    <label>From <%= form.text_field :from, placeholder: "+15555550100" %></label>
+    <label>To <%= form.text_field :to, value: @default_to %></label>
+    <label>Body <%= form.text_field :body, placeholder: "STOP" %></label>
+    <%= form.submit "Receive" %>
+  <% end %>
+</div>
+
+<h2>Sent</h2>
+<div class="panel table-wrap">
+  <% if @deliveries.empty? %>
+    <span class="muted">Nothing sent yet.</span>
+  <% else %>
+    <table>
+      <tr><th>When</th><th>To</th><th>Message</th><th>Status</th><th>Details</th></tr>
+      <% @deliveries.each do |delivery| %>
+        <tr id="delivery_<%= delivery.id %>">
+          <td><%= time_ago_in_words(delivery.created_at) %> ago</td>
+          <td><%= delivery.to_number %></td>
+          <td class="body"><%= delivery.body || content_tag(:span, "(body not stored)", class: "muted") %></td>
+          <td class="status status-<%= delivery.status %>"><%= delivery.status %></td>
+          <td class="muted">
+            <%= [delivery.messenger, delivery.action].compact.join("#") %><br>
+            <%= delivery.category %> · <%= pluralize(delivery.segments.to_i, "segment") %> · <%= delivery.provider %>
+            <% if delivery.error_message.present? %><br><%= delivery.error_code %> <%= delivery.error_message %><% end %>
+          </td>
+        </tr>
+      <% end %>
+    </table>
+  <% end %>
+</div>
+
+<h2>Received</h2>
+<div class="panel table-wrap">
+  <% if @inbound_messages.empty? %>
+    <span class="muted">Nothing received yet.</span>
+  <% else %>
+    <table>
+      <tr><th>When</th><th>From</th><th>Message</th><th>Keyword</th></tr>
+      <% @inbound_messages.each do |message| %>
+        <tr>
+          <td><%= time_ago_in_words(message.created_at) %> ago</td>
+          <td><%= message.from_number %></td>
+          <td class="body"><%= message.body %></td>
+          <td><%= message.keyword&.upcase %></td>
+        </tr>
+      <% end %>
+    </table>
+  <% end %>
+</div>

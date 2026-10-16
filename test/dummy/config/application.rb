@@ -12,5 +12,8 @@ module Dummy
     config.logger = Logger.new(nil)
     config.secret_key_base = "smswire-dummy"
     config.active_job.queue_adapter = :test
+    config.action_controller.allow_forgery_protection = false
+    config.smswire.show_previews = true
+    config.smswire.show_inbox = true
   end
 end

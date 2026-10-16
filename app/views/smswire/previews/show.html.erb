@@ -1,0 +1,34 @@
+<% content_for :title, "#{@preview.preview_name.camelize}##{@message_name}" %>
+<p><%= link_to "All previews", previews_path %></p>
+<h1><%= @preview.preview_name.camelize %>#<%= @message_name %></h1>
+
+<% if @message.nil? %>
+  <div class="panel muted">This action returned without calling <code>text</code>, so nothing would be sent.</div>
+<% else %>
+  <div class="preview">
+    <div class="phone">
+      <div class="bubble"><%= @message.body %></div>
+      <% @message.media_urls.each do |url| %>
+        <p class="muted">Media: <%= link_to url, url %></p>
+      <% end %>
+    </div>
+    <div class="panel">
+      <table>
+        <tr><th>To</th><td><%= @message.to %></td></tr>
+        <tr><th>From</th><td><%= @message.from || @message.messaging_service || "(default)" %></td></tr>
+        <tr><th>Category</th><td><%= @message.category %></td></tr>
+        <tr><th>Provider</th><td><%= @message.provider || Smswire.config.default_provider %></td></tr>
+        <tr><th>Encoding</th><td data-encoding><%= @analysis.encoding_label %></td></tr>
+        <tr><th>Segments</th><td data-segments><%= pluralize(@analysis.segments, "segment") %></td></tr>
+        <tr><th>Length</th><td><%= @analysis.units %> units, <%= @analysis.remaining %> left in this segment</td></tr>
+      </table>
+      <p><%= link_to "Raw text", preview_path(path: params[:path], raw: 1) %></p>
+    </div>
+  </div>
+  <% if @non_gsm.any? %>
+    <div class="warn" data-non-gsm>
+      These characters switch the message to UCS-2, which fits 70 units per segment instead of 160:
+      <code><%= @non_gsm.join(" ") %></code>
+    </div>
+  <% end %>
+<% end %>

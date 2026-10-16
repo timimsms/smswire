@@ -1,0 +1,18 @@
+require "test_helper"
+
+<% module_namespacing do -%>
+class <%= class_name.delete_suffix("Messenger") %>MessengerTest < ActiveSupport::TestCase
+  include Smswire::TestHelper
+<% actions.each do |action| -%>
+
+  test "<%= action %>" do
+    message = <%= class_name.delete_suffix("Messenger") %>Messenger.<%= action %>("<%= sample_number %>").message
+    assert_match "<%= class_name.delete_suffix("Messenger") %>Messenger#<%= action %>", message.body
+
+    assert_sms_delivered(to: "<%= sample_number %>", action: :<%= action %>) do
+      <%= class_name.delete_suffix("Messenger") %>Messenger.<%= action %>("<%= sample_number %>").deliver_later
+    end
+  end
+<% end -%>
+end
+<% end -%>

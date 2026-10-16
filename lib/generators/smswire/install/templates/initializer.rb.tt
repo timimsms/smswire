@@ -1,0 +1,30 @@
+Smswire.configure do |config|
+  # Development uses the :log provider and tests use :test unless set here.
+  # config.default_provider = :twilio
+
+  # Credentials default to Rails.application.credentials.twilio.
+  # config.providers = {
+  #   twilio: {account_sid: ENV["TWILIO_ACCOUNT_SID"], auth_token: ENV["TWILIO_AUTH_TOKEN"]}
+  # }
+
+  # Named senders. Messengers pick one with `default from: :transactional`.
+  config.senders = {
+    transactional: {number: ENV.fetch("SMS_FROM_NUMBER", "+15555550100")}
+    # marketing: {messaging_service: "MG...", provider: :twilio, consent_scope: "marketing"}
+  }
+
+  # Public URL where Smswire::Engine is mounted. Enables delivery status callbacks.
+  # config.callbacks_url = "https://example.com/smswire"
+
+  # Used in STOP / START / HELP auto-replies.
+  # config.program_name = "<%= Rails.application.class.module_parent_name.titleize rescue "My App" %>"
+
+  # Category rules merge over the defaults (marketing requires opt-in and has quiet hours).
+  # config.categories = {marketing: {rate_limit: {max: 3, per: 1.day}}}
+  # config.default_time_zone = "America/New_York"
+end
+
+# Staging safety: only listed numbers receive messages.
+# if ENV["SMS_ALLOWLIST"]
+#   Smswire.register_interceptor(Smswire::Interceptors::Allowlist.new(numbers: ENV["SMS_ALLOWLIST"].split(",")))
+# end

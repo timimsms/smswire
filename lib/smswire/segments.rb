@@ -25,6 +25,13 @@ module Smswire
       def ucs2? = encoding == :ucs2
 
       def encoding_label = gsm7? ? "GSM-7" : "UCS-2"
+
+      # Units left before the message needs another segment.
+      def remaining
+        limits = LIMITS.fetch(encoding)
+        capacity = (segments <= 1) ? limits[:single] : segments * limits[:multi]
+        [capacity - units, 0].max
+      end
     end
 
     module_function
@@ -35,6 +42,11 @@ module Smswire
       costs = chars.map { |char| cost(char, encoding) }
       units = costs.sum
       Analysis.new(encoding:, units:, segments: count(costs, units, LIMITS.fetch(encoding)))
+    end
+
+    # Characters that force UCS-2 encoding, in order of appearance.
+    def non_gsm_characters(text)
+      text.to_s.chars.reject { |char| GSM_BASIC.include?(char) || GSM_EXTENDED.include?(char) }.uniq
     end
 
     def gsm7?(chars)

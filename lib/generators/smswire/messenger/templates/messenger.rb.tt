@@ -1,0 +1,14 @@
+<% module_namespacing do -%>
+class <%= class_name.delete_suffix("Messenger") %>Messenger < ApplicationMessenger
+<% actions.each_with_index do |action, index| -%>
+<% if index > 0 -%>
+
+<% end -%>
+  # Template: app/views/<%= file_path %>/<%= action %>.text.erb
+  def <%= action %>(recipient)
+    @greeting = "Hi"
+    text to: recipient
+  end
+<% end -%>
+end
+<% end -%>

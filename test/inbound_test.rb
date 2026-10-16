@@ -1,15 +1,11 @@
 require "test_helper"
 require "base64"
 
-class InboundTest < ActionDispatch::IntegrationTest
-  include Smswire::TestHelper
-  include ConfigHelpers
-
+class InboundTest < Smswire::IntegrationTest
   PHONE = "+14155552671"
   OUR_NUMBER = "+15005550006"
 
   setup do
-    [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all)
     stub_request(:post, twilio_url).to_return(twilio_success)
   end
 

@@ -1,0 +1,21 @@
+<% content_for :title, "SMS previews" %>
+<h1>SMS previews</h1>
+<% if @previews.empty? %>
+  <p class="muted">No previews found. Add classes ending in <code>Preview</code> under
+    <%= safe_join(Smswire.config.preview_paths.map { |path| content_tag(:code, path) }, " or ") %>,
+    or run <code>bin/rails generate smswire:messenger</code>.</p>
+<% end %>
+<% @previews.each do |preview| %>
+  <h2><%= preview.preview_name.camelize %></h2>
+  <div class="panel">
+    <% if preview.messages.empty? %>
+      <span class="muted">No public methods.</span>
+    <% else %>
+      <ul>
+        <% preview.messages.each do |name| %>
+          <li><%= link_to name, preview_path(path: "#{preview.preview_name}/#{name}") %></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+<% end %>

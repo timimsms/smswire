@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Messenger previews at `<mount>/previews` with a phone frame, encoding,
+  segment count, remaining characters, and the characters that force UCS-2.
+- Development inbox at `<mount>/inbox` listing deliveries and inbound
+  messages, with a form that simulates replies through keyword handling.
+- Generators: `smswire:install`, `smswire:messenger`, and `smswire:provider`.
+- `Smswire::Interceptors::Allowlist` for staging, suppressing or redirecting
+  messages to unlisted numbers.
+
 - `Smswire::Consent` with per-sender consent scopes, evidence metadata, and
   `opt_in!`, `opt_out!`, `opt_out_everywhere!`, and `status_for`.
 - Inbound webhook endpoint storing `Smswire::InboundMessage` once per

@@ -1,5 +1,12 @@
 ENV["RAILS_ENV"] = "test"
 
+# A fresh file database each run; an in-memory database is lost whenever
+# Active Record opens a second connection.
+require "fileutils"
+dummy_tmp = File.expand_path("dummy/tmp", __dir__)
+FileUtils.mkdir_p(dummy_tmp)
+Dir[File.join(dummy_tmp, "test.sqlite3*")].each { |file| File.delete(file) }
+
 require_relative "dummy/config/environment"
 
 ActiveRecord::Migration.verbose = false
@@ -32,9 +39,22 @@ module ConfigHelpers
   end
 end
 
+# Every test starts with empty Smswire tables.
+module DatabaseReset
+  def before_setup
+    [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all)
+    super
+  end
+end
+
 class Smswire::TestCase < ActiveSupport::TestCase
   include Smswire::TestHelper
   include ConfigHelpers
+  include DatabaseReset
+end
 
-  setup { [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all) }
+class Smswire::IntegrationTest < ActionDispatch::IntegrationTest
+  include Smswire::TestHelper
+  include ConfigHelpers
+  include DatabaseReset
 end
