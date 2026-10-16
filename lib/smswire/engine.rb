@@ -1,8 +1,15 @@
-require "rails/railtie"
+require "rails/engine"
 require "abstract_controller/railties/routes_helpers"
 
 module Smswire
-  class Railtie < ::Rails::Railtie
+  # Mount for status callbacks:
+  #
+  #   mount Smswire::Engine => "/smswire"
+  #
+  # Install the migrations with +bin/rails smswire:install:migrations+.
+  class Engine < ::Rails::Engine
+    isolate_namespace Smswire
+
     ENVIRONMENT_PROVIDERS = {development: :log, test: :test}.freeze
 
     config.smswire = ActiveSupport::OrderedOptions.new
@@ -12,6 +19,10 @@ module Smswire
       app.config.smswire.each { |key, value| Smswire.config.public_send(:"#{key}=", value) }
       Smswire.config.default_provider ||= ENVIRONMENT_PROVIDERS[::Rails.env.to_sym]
       Smswire.config.logger ||= ::Rails.logger
+    end
+
+    initializer "smswire.log_subscriber" do
+      Smswire::LogSubscriber.attach_to :smswire
     end
 
     initializer "smswire.messenger" do |app|

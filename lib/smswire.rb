@@ -4,13 +4,14 @@ require "active_support/core_ext/object/blank"
 require "active_support/core_ext/string/filters"
 require "active_support/core_ext/hash/keys"
 require "active_support/core_ext/class/attribute"
+require "active_support/core_ext/numeric/time"
 require "active_job"
 
 loader = Zeitwerk::Loader.for_gem
 loader.inflector.inflect("http" => "HTTP", "rspec" => "RSpec")
 loader.ignore(
   "#{__dir__}/smswire/errors.rb",
-  "#{__dir__}/smswire/railtie.rb",
+  "#{__dir__}/smswire/engine.rb",
   "#{__dir__}/smswire/rspec.rb"
 )
 loader.setup
@@ -63,4 +64,4 @@ module Smswire
   end
 end
 
-require_relative "smswire/railtie" if defined?(Rails::Railtie)
+require_relative "smswire/engine" if defined?(Rails::Railtie)

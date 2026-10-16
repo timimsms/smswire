@@ -35,6 +35,7 @@ Gem::Specification.new do |spec|
   rails_requirement = [">= 7.1", "< 9"]
   spec.add_dependency "actionpack", *rails_requirement
   spec.add_dependency "activejob", *rails_requirement
+  spec.add_dependency "activerecord", *rails_requirement
   spec.add_dependency "activesupport", *rails_requirement
   spec.add_dependency "railties", *rails_requirement
   spec.add_dependency "zeitwerk", "~> 2.6"

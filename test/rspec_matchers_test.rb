@@ -20,7 +20,7 @@ class RSpecMatchersTest < Smswire::TestCase
   end
 
   test "deliver_sms with exact counts" do
-    two = -> { 2.times { OrderMessenger.literal("+14155552671", "x").deliver_now } }
+    two = -> { 2.times { |n| OrderMessenger.literal("+14155552671", "x#{n}").deliver_now } }
     expect(&two).to deliver_sms.exactly(2).times
     assert_raises(NotMet) { expect(&two).to deliver_sms.once }
   end

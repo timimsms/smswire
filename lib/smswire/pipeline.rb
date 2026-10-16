@@ -1,9 +1,12 @@
 module Smswire
-  # Runs a message through normalize, validate, intercept, send, and observe.
+  # Runs a message through normalize, validate, claim, intercept, send,
+  # record, and observe.
   #
   # Returns a Smswire::Result. Permanent provider errors become a :failed
   # result. Transient errors and configuration errors propagate so the
-  # caller (or Smswire::DeliveryJob) can retry or fail loudly.
+  # caller (or Smswire::DeliveryJob) can retry or fail loudly. When
+  # persistence is enabled, each claimed message has a Smswire::Delivery row
+  # that a retry reuses, so a message is never recorded twice.
   class Pipeline
     def self.call(message)
       new(message).call
@@ -22,27 +25,44 @@ module Smswire
 
       return reject(:rejected_empty_body) if message.body.blank? && message.media_urls.empty?
 
-      run_interceptors
-      return finish(Result.new(status: :suppressed_by_interceptor, message:)) unless message.perform_deliveries?
+      provider = Providers.resolve(message.provider)
+      message.lock_idempotency_key!
 
-      deliver
+      delivery = nil
+      if Smswire.config.persist_deliveries
+        delivery = Delivery.claim_for(message, provider: provider.name)
+        return reject(:duplicate) unless delivery
+        message.status_callback_url ||= Callbacks.status_url(provider.name, delivery) if provider.capabilities.include?(:status_callbacks)
+      end
+
+      run_interceptors
+      unless message.perform_deliveries?
+        delivery&.record_suppression!(message)
+        return finish(Result.new(status: :suppressed_by_interceptor, message:, delivery:))
+      end
+
+      deliver(provider, delivery)
     end
 
     private
 
-    def deliver
-      provider = Providers.resolve(message.provider)
-      payload = message.to_log_h.merge(provider: provider.name)
+    def deliver(provider, delivery)
+      payload = message.to_log_h.merge(provider: provider.name, delivery_id: delivery&.id)
       receipt = ActiveSupport::Notifications.instrument("deliver.smswire", payload) do
         provider.deliver(message).tap do |r|
           payload[:provider_id] = r.provider_id
           payload[:status] = r.status
         end
       end
+      delivery&.record_receipt!(receipt, message)
       status = (receipt.status == :failed) ? :failed : :accepted
-      finish(Result.new(status:, message:, receipt:))
+      finish(Result.new(status:, message:, receipt:, delivery:))
     rescue PermanentError => error
-      finish(Result.new(status: :failed, message:, error:))
+      delivery&.record_failure!(error, message)
+      finish(Result.new(status: :failed, message:, error:, delivery:))
+    rescue TransientError => error
+      delivery&.release!(error)
+      raise
     end
 
     def reject(status)

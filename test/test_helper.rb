@@ -1,6 +1,9 @@
 ENV["RAILS_ENV"] = "test"
 
 require_relative "dummy/config/environment"
+
+ActiveRecord::Migration.verbose = false
+ActiveRecord::MigrationContext.new(File.expand_path("../db/migrate", __dir__)).migrate
 require "minitest/autorun"
 require "webmock/minitest"
 
@@ -32,4 +35,6 @@ end
 class Smswire::TestCase < ActiveSupport::TestCase
   include Smswire::TestHelper
   include ConfigHelpers
+
+  setup { Smswire::Delivery.delete_all }
 end

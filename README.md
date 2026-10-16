@@ -10,7 +10,7 @@ consent and STOP / HELP / START handling, quiet hours, previews, and a
 [Noticed](https://github.com/excid3/noticed) delivery adapter follow in later
 phases of the [specification](docs/SPEC.md).
 
-**Status:** pre-release. Phase 1 of the spec is implemented on `main`; the
+**Status:** pre-release. Phases 1 and 2 of the spec are implemented; the
 published `0.0.1.pre` gem only reserves the name.
 
 ## Requirements
@@ -57,6 +57,38 @@ Every message is normalized to E.164, checked for an empty body, passed
 through interceptors, sent, and reported to observers and
 `ActiveSupport::Notifications` (`deliver.smswire`, `reject.smswire`). Bodies
 are never instrumented or logged by provider adapters.
+
+### Deliveries and status callbacks
+
+```
+bin/rails smswire:install:migrations
+bin/rails db:migrate
+```
+
+```ruby
+# config/routes.rb
+mount Smswire::Engine => "/smswire"
+
+# config/initializers/smswire.rb
+config.callbacks_url = "https://app.example.com/smswire"
+```
+
+Every send is recorded in `Smswire::Delivery` with the provider message id,
+segments, price, and status. With `callbacks_url` set, Twilio posts status
+updates to the engine, which verifies the signature and moves the row
+forward: `pending`, `queued`, `sent`, `delivered` (or `undelivered` /
+`failed`). Out-of-order callbacks never move a status backwards.
+
+Identical messages to the same number inside `dedupe_window` (10 minutes by
+default) are refused with status `:duplicate`. Pass `idempotency_key:` to
+`text` to choose what counts as identical. Bodies are stored unless the
+category opts out; `otp` does by default.
+
+```ruby
+result = OrderMessenger.with(order:).shipped(user).deliver_now
+result.delivery.status          # => "accepted"
+Smswire::Delivery.for_number("+15551234567").recent
+```
 
 ### Providers
 

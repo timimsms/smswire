@@ -9,6 +9,9 @@ module Smswire
   # number. Raised while building the message so it surfaces in tests.
   class UnresolvableRecipient < Error; end
 
+  # Raised when a provider callback fails signature verification.
+  class SignatureError < Error; end
+
   # Base class for errors raised by provider adapters.
   class DeliveryError < Error
     attr_reader :provider, :provider_code, :http_status, :raw
