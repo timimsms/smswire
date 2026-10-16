@@ -15,6 +15,7 @@ if (rails_version = ENV["RAILS_VERSION"])
 end
 
 gem "sqlite3", (ENV["RAILS_VERSION"] == "7.1") ? "~> 1.4" : ">= 2.1"
+gem "noticed", "~> 3.1"
 gem "rake", "~> 13.0"
 gem "minitest", "~> 5.25"
 gem "webmock", "~> 3.23"

@@ -2,6 +2,7 @@ require "rails"
 require "active_job/railtie"
 require "active_record/railtie"
 require "action_controller/railtie"
+require "noticed"
 require "smswire"
 
 module Dummy

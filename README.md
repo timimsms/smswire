@@ -7,10 +7,10 @@ templates for SMS, a provider-agnostic message object, a delivery pipeline
 with typed outcomes, retries with a transient-versus-permanent error
 taxonomy, and test helpers. Persisted deliveries with status callbacks,
 consent and STOP / HELP / START handling, quiet hours, previews, and a
-[Noticed](https://github.com/excid3/noticed) delivery adapter follow in later
-phases of the [specification](docs/SPEC.md).
+[Noticed](https://github.com/excid3/noticed) delivery method are included.
+See the [specification](docs/SPEC.md) for the full design.
 
-**Status:** pre-release. Phases 1 to 4 of the spec are implemented; the
+**Status:** pre-release. Phases 1 to 5 of the spec are implemented; the
 published `0.0.1.pre` gem only reserves the name.
 
 ## Requirements
@@ -167,13 +167,33 @@ Smswire.register_interceptor(
 | Name | Use |
 |---|---|
 | `:twilio` | Twilio Programmable Messaging over REST, no SDK |
+| `:telnyx` | Telnyx Messaging API v2; `api_key`, `public_key` for webhooks |
+| `:vonage` | Vonage SMS API; `api_key`, `api_secret`, `signature_secret` |
 | `:log` | Writes messages to the logger; development default |
 | `:test` | Records messages in memory; test default |
 | `:null` | Accepts and discards |
 
-Generate your own with `bin/rails generate smswire:provider Acme`, or
+Each adapter passes `Smswire::ProviderContract`, a test suite shipped in the
+gem. Generate your own with `bin/rails generate smswire:provider Acme`, which
+writes an adapter and a test that runs the contract against it, or
 subclass `Smswire::Providers::Base` and call
 `Smswire::Providers.register(:acme, "AcmeProvider")`.
+
+### Noticed
+
+```ruby
+class OrderShippedNotifier < Noticed::Event
+  deliver_by :smswire do |config|
+    config.messenger = "OrderMessenger"
+    config.action = :shipped        # called with the recipient by default
+  end
+end
+```
+
+The messenger gets the event params plus `notification`, `record`, and
+`recipient`, so consent, quiet hours, deduplication, retries, and status
+tracking all apply. Each delivery stores the Noticed notification and event
+ids in its metadata.
 
 ### Testing
 

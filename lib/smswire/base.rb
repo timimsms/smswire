@@ -109,7 +109,7 @@ module Smswire
         body: BodyFormatter.call(content),
         media_urls: settings[:media_urls],
         category: settings[:category],
-        metadata: settings[:metadata],
+        metadata: (settings[:metadata] || {}).merge(params.fetch(:smswire_metadata, {})),
         validity_period: settings[:validity_period],
         idempotency_key: settings[:idempotency_key],
         consent_scope: settings[:consent_scope] || sender.consent_scope,

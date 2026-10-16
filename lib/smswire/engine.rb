@@ -33,6 +33,10 @@ module Smswire
       Smswire.config.logger ||= ::Rails.logger
     end
 
+    config.after_initialize do
+      require_relative "noticed_delivery_method" if defined?(::Noticed::DeliveryMethod)
+    end
+
     initializer "smswire.log_subscriber" do
       Smswire::LogSubscriber.attach_to :smswire
     end

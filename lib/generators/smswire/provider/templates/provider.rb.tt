@@ -4,8 +4,16 @@
 # Raise Smswire::TransientError for network failures and 5xx responses,
 # Smswire::ThrottledError (with retry_after) for rate limiting, and
 # Smswire::PermanentError (with a reason) when retrying cannot help.
+# test/sms_providers/<%= file_name %>_provider_test.rb runs the shared
+# Smswire::ProviderContract against this class.
 class <%= provider_class %> < Smswire::Providers::Base
   API_URL = "https://api.example.com/messages".freeze
+
+  # Replace with the provider's error codes.
+  PERMANENT_REASONS = {
+    "invalid_number" => :invalid_number,
+    "opted_out" => :opted_out
+  }.freeze
 
   def deliver(message)
     response = Smswire::HTTP.post_form(API_URL, [
@@ -14,22 +22,30 @@ class <%= provider_class %> < Smswire::Providers::Base
       ["body", message.body.to_s]
     ], headers: {"Authorization" => "Bearer #{options.fetch(:api_key)}"}, provider: name)
 
+    status = response.code.to_i
     json = Smswire::HTTP.parse_json(response.body)
-    case response.code.to_i
+    code = json.dig("error", "code")&.to_s
+    error_options = {provider: name, provider_code: code, http_status: status, raw: json}
+
+    case status
     when 200..299
       receipt(provider_id: json["id"], status: :accepted, segments: message.segments, raw: json)
+    when 401, 403
+      raise Smswire::PermanentError.new("<%= class_name %> authentication failed", reason: :authentication, **error_options)
     when 429
-      raise Smswire::ThrottledError.new("<%= class_name %> rate limited", retry_after: response["Retry-After"]&.to_i, provider: name)
+      raise Smswire::ThrottledError.new("<%= class_name %> rate limited", retry_after: response["Retry-After"]&.to_i, **error_options)
     when 500..599
-      raise Smswire::TransientError.new("<%= class_name %> #{response.code}", provider: name, http_status: response.code.to_i)
+      raise Smswire::TransientError.new("<%= class_name %> #{status}", **error_options)
     else
-      raise Smswire::PermanentError.new("<%= class_name %> #{response.code}: #{json["error"]}",
-        reason: :rejected, provider: name, http_status: response.code.to_i, raw: json)
+      raise Smswire::PermanentError.new("<%= class_name %> #{status}: #{code}",
+        reason: PERMANENT_REASONS.fetch(code, :rejected), **error_options)
     end
   end
 
-  # Add :status_callbacks and :inbound here once verify_signature!,
-  # parse_status_callback, and parse_inbound are implemented.
+  # Add :status_callbacks and :inbound once verify_signature!,
+  # parse_status_callback, and parse_inbound are implemented; the contract
+  # then also checks them through contract_status_request and
+  # contract_inbound_request.
   def capabilities
     Set.new
   end
