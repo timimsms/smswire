@@ -27,12 +27,15 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir.chdir(__dir__) do
     `git ls-files -z`.split("\x0").reject do |f|
-      f.start_with?("test/", "bin/", ".github/", ".gitignore")
+      f.start_with?("test/", "bin/", ".github/", ".gitignore", "Gemfile", "Rakefile")
     end
   end
   spec.require_paths = ["lib"]
 
-  # Runtime dependencies arrive with the first functional release (Phase 1
-  # of docs/SPEC.md): activesupport, activejob, activerecord, actionview,
-  # railties, all >= 7.1. This pre-release only reserves the name.
+  rails_requirement = [">= 7.1", "< 9"]
+  spec.add_dependency "actionpack", *rails_requirement
+  spec.add_dependency "activejob", *rails_requirement
+  spec.add_dependency "activesupport", *rails_requirement
+  spec.add_dependency "railties", *rails_requirement
+  spec.add_dependency "zeitwerk", "~> 2.6"
 end
