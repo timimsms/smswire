@@ -17,29 +17,31 @@ manual pushes.
 
 ## Before 1.0
 
-- Merge the phase pull requests in order, so `main` holds the release.
 - Confirm open decisions 4 to 6 in `docs/SPEC.md`.
-- Review the known limitations listed under Phase 6 in `docs/SPEC.md`.
+- Review the known limitations in `CHANGELOG.md` and `docs/SPEC.md`.
 - Try the getting-started guide in a new Rails app against a real provider
   account, including a STOP reply and a delivery status callback.
 
 ## Each release
 
-1. Make sure CI is green on `main`.
-2. Update `lib/smswire/version.rb`.
-3. In `CHANGELOG.md`, rename `[Unreleased]` to the version and the release
-   date, and start a new empty `[Unreleased]` section.
-4. Commit: `Release vX.Y.Z`.
-5. Tag and push:
+1. Open a pull request that:
+   - updates `lib/smswire/version.rb`;
+   - in `CHANGELOG.md`, moves the `[Unreleased]` entries under a new
+     `[X.Y.Z] - YYYY-MM-DD` heading, leaves `[Unreleased]` empty, and updates
+     the compare links at the bottom.
+2. Merge it once CI is green.
+3. In GitHub, open **Actions > Release > Run workflow** on `main`.
+4. The workflow runs the tests, then `rake release` builds the gem, creates
+   and pushes the `vX.Y.Z` tag, and publishes with trusted publishing. It
+   waits until the version is available on RubyGems.
+5. Create a GitHub release from the new tag with the changelog section:
 
    ```
-   git tag -a vX.Y.Z -m "vX.Y.Z"
-   git push origin main vX.Y.Z
+   gh release create vX.Y.Z --notes-file <(sed -n '/^## \[X.Y.Z\]/,/^## \[/p' CHANGELOG.md | sed '$d')
    ```
 
-6. The release workflow runs the tests, builds the gem, and pushes it to
-   RubyGems. Check https://rubygems.org/gems/smswire afterwards.
-7. Create a GitHub release from the tag with the changelog section.
+If the workflow fails before publishing, fix the problem and run it again;
+`rake release` skips tagging when the tag already exists.
 
 ## If a release goes wrong
 

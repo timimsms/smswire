@@ -1,79 +1,74 @@
 # Changelog
 
 All notable changes to this project are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/). Before 1.0, minor versions may
+include breaking changes, which are called out here.
 
 ## [Unreleased]
 
-### Added
+## [0.1.0] - 2026-10-15
 
-- Guides: getting started, migrating from twilio-ruby, migrating from
-  Noticed's Twilio method, compliance primer, and writing a provider.
-- `Smswire.verify_credentials!` with checks for Twilio, Telnyx, and Vonage.
-- `support_contact` for HELP replies and `opt_out_all_scopes`.
-- Release workflow publishing to RubyGems with trusted publishing.
+First functional release. Requires Ruby 3.2+ and Rails 7.1 to 8.1.
 
-### Changed
-
-- Keyword replies follow CTIA guidance: the opt-out confirmation says no
-  further messages will be sent, and HELP names a support contact.
-- Keywords ignore internal spaces and hyphens, so "opt out" and "stop all" match.
-- Noticed adapter job options are `sms_queue` and `sms_priority`, so Noticed's
-  own `wait` no longer delays a message twice.
-
-- Telnyx adapter (Messaging API v2) with Ed25519 webhook verification.
-- Vonage adapter (SMS API) with signed webhook verification for `md5hash` and
-  HMAC methods.
-- `Smswire::ProviderContract`, a shipped Minitest suite every adapter passes;
-  the provider generator now writes a test that runs it.
-- `Noticed::DeliveryMethods::Smswire` for `deliver_by :smswire`, loaded when
-  Noticed is present.
-- Webhook endpoints accept both status and inbound events, for providers that
-  post everything to one URL.
-
-- Messenger previews at `<mount>/previews` with a phone frame, encoding,
-  segment count, remaining characters, and the characters that force UCS-2.
-- Development inbox at `<mount>/inbox` listing deliveries and inbound
-  messages, with a form that simulates replies through keyword handling.
-- Generators: `smswire:install`, `smswire:messenger`, and `smswire:provider`.
-- `Smswire::Interceptors::Allowlist` for staging, suppressing or redirecting
-  messages to unlisted numbers.
-
-- `Smswire::Consent` with per-sender consent scopes, evidence metadata, and
-  `opt_in!`, `opt_out!`, `opt_out_everywhere!`, and `status_for`.
-- Inbound webhook endpoint storing `Smswire::InboundMessage` once per
-  provider message id, with STOP / START / HELP keyword handling,
-  configurable auto-replies, and an `sms_received` observer hook.
-- Category rules for consent, quiet hours, and rate limits, merged over
-  shipped defaults. New outcomes `:rejected_opted_out`,
-  `:rejected_no_consent`, `:rejected_rate_limited`, `:deferred_quiet_hours`,
-  and `:deferred_rate_limited`; deferred messages re-enqueue themselves.
-- Carrier opt-out errors record an opt-out with source `carrier`.
-
-- `Smswire::Engine` with `smswire:install:migrations` and the
-  `smswire_deliveries` table, following the app's primary key type.
-- `Smswire::Delivery` records for every send, with atomic send claims,
-  forward-only status, and retries that reuse their row.
-- Deduplication of identical messages inside `dedupe_window`, returning
-  `:duplicate`, with optional explicit `idempotency_key`.
-- Status callback endpoint with Twilio signature verification and
-  `sms_status_updated` observer hook. `callbacks_url` builds callback URLs.
-- Per-category body storage, with `otp` bodies not stored by default.
-- `Smswire::LogSubscriber` logging deliveries, rejections, and status
-  updates with masked numbers and no bodies.
+### Messengers and delivery
 
 - `Smswire::Base` messenger classes with `default`, `with(params)`, `.text.erb`
-  templates, layouts, I18n lazy lookup, and URL helpers.
-- `Smswire::Message` with GSM-7 / UCS-2 encoding detection and segment counting.
-- Delivery pipeline: E.164 normalization, empty-body rejection, interceptors,
-  provider delivery, observers, and `ActiveSupport::Notifications` events.
-- Providers: `twilio`, `log`, `test`, `null`, plus a registry for custom adapters.
-- `deliver_now` returning `Smswire::Result`, and `deliver_later` through
-  `Smswire::DeliveryJob` with transient retries and Retry-After handling.
-- Named senders, recipient resolution, and optional `phonelib` support.
+  templates, layouts, I18n lazy lookup, URL helpers, and named senders.
+- `Smswire::Message` with GSM-7 / UCS-2 detection and segment counting.
+- A delivery pipeline with E.164 normalization, consent checks, quiet hours,
+  rate limits, deduplication, interceptors, and observers, returning a
+  `Smswire::Result` with a typed status.
+- `deliver_later` through `Smswire::DeliveryJob`, retrying transient errors
+  with backoff and honoring `Retry-After`.
+
+### Providers
+
+- Twilio, Telnyx, and Vonage adapters over REST with no provider SDK, plus
+  `log`, `test`, and `null` providers and a registry for custom adapters.
+- Webhook signature verification for each provider: Twilio HMAC-SHA1, Telnyx
+  Ed25519, and Vonage `md5hash` or HMAC.
+- `Smswire::ProviderContract`, a Minitest suite every adapter passes.
+- `Smswire.verify_credentials!` for boot checks and health endpoints.
+
+### Persistence and tracking
+
+- `Smswire::Engine` with `smswire:install:migrations` and tables for
+  deliveries, consents, and inbound messages, following the app's primary
+  key type.
+- A `Smswire::Delivery` row for every send, with atomic send claims, retries
+  that reuse their row, and forward-only status from provider callbacks.
+
+### Consent and compliance
+
+- `Smswire::Consent` with per-sender scopes and evidence metadata.
+- STOP / START / HELP keyword handling with replies following CTIA guidance,
+  including a `support_contact` in HELP replies.
+- Category rules: `marketing` requires opt-in and observes 9pm to 8am quiet
+  hours in the recipient's time zone. Carrier opt-out errors record opt-outs.
+
+### Developer experience
+
+- Previews at `<mount>/previews` and a development inbox at `<mount>/inbox`.
+- Generators: `smswire:install`, `smswire:messenger`, and `smswire:provider`.
 - `Smswire::TestHelper` for Minitest and RSpec matchers in `smswire/rspec`.
-- CI matrix over Ruby 3.2 to 3.4 and Rails 7.1 to 8.1.
+- `Smswire::Interceptors::Allowlist` for staging.
+- `Noticed::DeliveryMethods::Smswire` for `deliver_by :smswire`.
+- Guides in `docs/guides`.
 
-## [0.0.1.pre]
+### Known limitations
 
-- Reserve the gem name. No functionality yet; see `docs/SPEC.md`.
+- Free-text opt-outs such as "please stop texting me" are stored but not
+  acted on; the compliance guide shows how to review them.
+- Concurrent sends can briefly exceed a rate limit.
+- Vonage receipts for the second and later parts of a long message are not
+  matched to the delivery, and Vonage has no MMS.
+- Telnyx ignores `validity_period`.
+
+## [0.0.1.pre] - 2026-10-08
+
+- Reserve the gem name. No functionality.
+
+[Unreleased]: https://github.com/timimsms/smswire/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/timimsms/smswire/compare/v0.0.1.pre...v0.1.0
+[0.0.1.pre]: https://github.com/timimsms/smswire/releases/tag/v0.0.1.pre

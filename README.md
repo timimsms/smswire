@@ -10,9 +10,8 @@ consent and STOP / HELP / START handling, quiet hours, previews, and a
 [Noticed](https://github.com/excid3/noticed) delivery method are included.
 See the [specification](docs/SPEC.md) for the full design.
 
-**Status:** pre-release. All six phases of the spec are implemented; the
-published `0.0.1.pre` gem only reserves the name. See
-[RELEASING.md](RELEASING.md) for the release steps.
+**Status:** `0.1.0`, the first functional release. The API may still change
+before 1.0; breaking changes are called out in the [changelog](CHANGELOG.md).
 
 ## Guides
 
