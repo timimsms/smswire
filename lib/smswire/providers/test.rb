@@ -40,6 +40,8 @@ module Smswire
         end
       end
 
+      def verify_credentials! = true
+
       def deliver(message)
         if (error = self.class.next_failure)
           raise error

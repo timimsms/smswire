@@ -46,8 +46,14 @@ module Smswire
         handle(response)
       end
 
+      BALANCE_URL = "https://api.telnyx.com/v2/balance".freeze
+
       def capabilities
         Set[:mms, :status_callbacks, :inbound, :messaging_services]
+      end
+
+      def verify_credentials!
+        check_credentials_response(HTTP.get(BALANCE_URL, headers: {"Authorization" => "Bearer #{credential(:api_key)}"}, provider: name))
       end
 
       def payload_for(message)

@@ -5,6 +5,8 @@ module Smswire
     # Writes messages, including the body, to Smswire.logger instead of
     # sending them. The default provider in development.
     class Log < Base
+      def verify_credentials! = true
+
       def deliver(message)
         analysis = message.analysis
         sender = message.from || message.messaging_service || "(none)"

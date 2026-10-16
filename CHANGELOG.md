@@ -7,6 +7,20 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Guides: getting started, migrating from twilio-ruby, migrating from
+  Noticed's Twilio method, compliance primer, and writing a provider.
+- `Smswire.verify_credentials!` with checks for Twilio, Telnyx, and Vonage.
+- `support_contact` for HELP replies and `opt_out_all_scopes`.
+- Release workflow publishing to RubyGems with trusted publishing.
+
+### Changed
+
+- Keyword replies follow CTIA guidance: the opt-out confirmation says no
+  further messages will be sent, and HELP names a support contact.
+- Keywords ignore internal spaces and hyphens, so "opt out" and "stop all" match.
+- Noticed adapter job options are `sms_queue` and `sms_priority`, so Noticed's
+  own `wait` no longer delays a message twice.
+
 - Telnyx adapter (Messaging API v2) with Ed25519 webhook verification.
 - Vonage adapter (SMS API) with signed webhook verification for `md5hash` and
   HMAC methods.

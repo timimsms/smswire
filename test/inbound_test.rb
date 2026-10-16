@@ -6,7 +6,7 @@ class InboundTest < Smswire::IntegrationTest
   OUR_NUMBER = "+15005550006"
 
   setup do
-    stub_request(:post, twilio_url).to_return(twilio_success)
+    stub_request(:post, twilio_url).to_return { twilio_success(sid: "SM#{SecureRandom.hex(6)}") }
   end
 
   def receive(body, sid: "SMin#{SecureRandom.hex(4)}", signature: :valid, **extra)
@@ -36,7 +36,7 @@ class InboundTest < Smswire::IntegrationTest
     perform_enqueued_jobs
     reply = Smswire::Delivery.sole
     assert_equal ["compliance", OUR_NUMBER, "twilio", "queued"], [reply.category, reply.from_number, reply.provider, reply.status]
-    assert_equal "You have been unsubscribed from Dummy messages and will not receive any more. Reply START to resubscribe.",
+    assert_equal "Dummy: You are unsubscribed and will no longer receive any further messages. Reply START to resubscribe.",
       reply.body
 
     assert_equal :rejected_opted_out, OrderMessenger.literal(PHONE, "Your order shipped").deliver_now.status
@@ -62,6 +62,35 @@ class InboundTest < Smswire::IntegrationTest
     senders = Smswire.config.senders.merge(transactional: {number: OUR_NUMBER, consent_scope: "orders"})
     with_config(senders:) { receive("STOP") }
     assert_equal [["orders", "opted_out"]], Smswire::Consent.pluck(:scope, :status)
+  end
+
+  test "keywords ignore spaces and hyphens" do
+    receive("Opt out.")
+    receive("stop all")
+    assert_equal %w[stop stop], Smswire::InboundMessage.pluck(:keyword)
+  end
+
+  test "HELP includes the support contact, and warns when none is set" do
+    with_config(support_contact: "help@acme.example") do
+      receive("HELP")
+      perform_enqueued_jobs
+    end
+    assert_equal "Dummy: For help, contact help@acme.example. Reply STOP to unsubscribe. Msg & data rates may apply.",
+      Smswire::Delivery.sole.body
+
+    output = StringIO.new
+    with_config(logger: Logger.new(output)) do
+      receive("INFO")
+      perform_enqueued_jobs
+    end
+    assert_includes output.string, "Set config.support_contact"
+    assert_equal "Dummy: Reply STOP to unsubscribe. Msg & data rates may apply.", Smswire::Delivery.order(:created_at).last.body
+  end
+
+  test "STOP can opt out of every scope" do
+    senders = Smswire.config.senders.merge(brand_b: {number: "+15005550001", consent_scope: "brand_b"})
+    with_config(senders:, opt_out_all_scopes: true) { receive("STOP") }
+    assert_equal %w[brand_b default], Smswire::Consent.where(status: "opted_out").pluck(:scope).sort
   end
 
   test "keywords must be the whole message" do

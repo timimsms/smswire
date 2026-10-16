@@ -13,7 +13,8 @@ module Noticed
     #       # config.args   = -> { [recipient] }                # default
     #       # config.kwargs = -> { {} }
     #       # config.params = -> { {order: record} }            # default: the event params
-    #       # config.wait, config.queue, config.priority        # for Smswire::DeliveryJob
+    #       # config.sms_queue, config.sms_priority             # for Smswire::DeliveryJob
+    #       # config.wait, config.queue, config.if, ...         # Noticed's own job options
     #     end
     #   end
     #
@@ -43,9 +44,10 @@ module Noticed
         )
       end
 
+      # Noticed reads wait, wait_until, queue, and priority for its own job,
+      # which already applies any delay, so Smswire's job takes separate keys.
       def job_options
-        {wait: evaluate_option(:wait), wait_until: evaluate_option(:wait_until),
-         queue: evaluate_option(:queue), priority: evaluate_option(:priority)}.compact
+        {queue: evaluate_option(:sms_queue), priority: evaluate_option(:sms_priority)}.compact
       end
     end
   end
