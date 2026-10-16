@@ -17,7 +17,8 @@ module Smswire
 
     def reject(event)
       payload = event.payload
-      info { "SMS #{payload[:messenger]}##{payload[:action]} to #{mask(payload[:to])} not sent: #{payload[:reason]}" }
+      until_time = payload[:resume_at] ? " until #{payload[:resume_at].utc.iso8601}" : ""
+      info { "SMS #{payload[:messenger]}##{payload[:action]} to #{mask(payload[:to])} not sent: #{payload[:reason]}#{until_time}" }
     end
 
     def status_update(event)
@@ -29,6 +30,14 @@ module Smswire
         end
       else
         warn { "SMS status #{payload[:provider]} #{payload[:provider_id]}: #{payload[:status]} for unknown delivery" }
+      end
+    end
+
+    def inbound(event)
+      payload = event.payload
+      info do
+        keyword = payload[:keyword] ? " keyword #{payload[:keyword]}" : ""
+        "SMS received via #{payload[:provider]} from #{mask(payload[:from])}#{keyword}#{" (duplicate webhook)" if payload[:duplicate]}"
       end
     end
 

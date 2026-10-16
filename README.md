@@ -10,7 +10,7 @@ consent and STOP / HELP / START handling, quiet hours, previews, and a
 [Noticed](https://github.com/excid3/noticed) delivery adapter follow in later
 phases of the [specification](docs/SPEC.md).
 
-**Status:** pre-release. Phases 1 and 2 of the spec are implemented; the
+**Status:** pre-release. Phases 1 to 3 of the spec are implemented; the
 published `0.0.1.pre` gem only reserves the name.
 
 ## Requirements
@@ -89,6 +89,35 @@ result = OrderMessenger.with(order:).shipped(user).deliver_now
 result.delivery.status          # => "accepted"
 Smswire::Delivery.for_number("+15551234567").recent
 ```
+
+### Consent, keywords, quiet hours, and rate limits
+
+Point your Twilio number's incoming message webhook at
+`https://app.example.com/smswire/inbound/twilio`. Replies of STOP, START,
+and HELP (and their synonyms) update `Smswire::Consent` and send the
+configured confirmation. Record opt-ins from your own forms with evidence:
+
+```ruby
+Smswire::Consent.opt_in!(user.phone, source: :web_form,
+  metadata: {ip: request.remote_ip, form: "checkout", copy: terms_text})
+```
+
+Each message has a category. The shipped rules are:
+
+| Category | Consent | Quiet hours |
+|---|---|---|
+| `transactional` (default) | send unless opted out | none |
+| `otp` | send unless opted out; body not stored | none |
+| `marketing` | requires opt-in | 9pm to 8am recipient time |
+| `compliance` | not checked; keyword replies | none |
+
+Override any key, and add rate limits, in `config.categories`. Messages in
+quiet hours or over a rate limit are re-enqueued for when they may send and
+return `:deferred_quiet_hours` or `:deferred_rate_limited`. A carrier
+opt-out error from the provider records an opt-out automatically.
+
+Smswire provides these mechanisms. Your app is still responsible for its
+messaging program's legal compliance.
 
 ### Providers
 

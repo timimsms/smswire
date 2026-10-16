@@ -5,7 +5,7 @@ class StatusCallbacksTest < ActionDispatch::IntegrationTest
   include Smswire::TestHelper
   include ConfigHelpers
 
-  setup { Smswire::Delivery.delete_all }
+  setup { [Smswire::Delivery, Smswire::Consent, Smswire::InboundMessage].each(&:delete_all) }
 
   def sign(url, params, token: "secret")
     data = url + params.sort.map { |key, value| "#{key}#{value}" }.join

@@ -25,6 +25,16 @@ module Smswire
         raise NotImplementedError, "#{self.class.name} does not support callbacks"
       end
 
+      # Return a Smswire::Inbound for an inbound message webhook.
+      def parse_inbound(request)
+        raise NotImplementedError, "#{self.class.name} does not support inbound messages"
+      end
+
+      # [body, content_type] to answer an inbound webhook with, or nil for 204.
+      def inbound_response
+        nil
+      end
+
       # Return a Smswire::StatusUpdate for a status callback request.
       def parse_status_callback(request)
         raise NotImplementedError, "#{self.class.name} does not support status callbacks"

@@ -81,6 +81,24 @@ module Smswire
         )
       end
 
+      def parse_inbound(request)
+        params = request.request_parameters
+        Inbound.new(
+          provider_id: params["MessageSid"] || params["SmsSid"],
+          from: params["From"],
+          to: params["To"],
+          body: params["Body"].to_s,
+          messaging_service: params["MessagingServiceSid"].presence,
+          provider_keyword: params["OptOutType"].present?,
+          raw: params.to_h
+        )
+      end
+
+      # Empty TwiML, so Twilio sends no reply of its own.
+      def inbound_response
+        ['<?xml version="1.0" encoding="UTF-8"?><Response></Response>', "text/xml"]
+      end
+
       private
 
       def handle(response)

@@ -25,6 +25,18 @@ module Smswire
 
       return reject(:rejected_empty_body) if message.body.blank? && message.media_urls.empty?
 
+      rule = Smswire.config.category_options(message.category)
+      if (status = consent_rejection(rule))
+        return reject(status)
+      end
+      if (resume_at = QuietHours.resume_at(rule[:quiet_hours], time_zone: QuietHours.time_zone_for(message.recipient)))
+        return defer(:deferred_quiet_hours, resume_at)
+      end
+      if rule[:rate_limit] && (resume_at = RateLimit.resume_at(message, rule[:rate_limit]))
+        return reject(:rejected_rate_limited) if rule[:rate_limit][:exceed]&.to_sym == :reject
+        return defer(:deferred_rate_limited, resume_at)
+      end
+
       provider = Providers.resolve(message.provider)
       message.lock_idempotency_key!
 
@@ -59,10 +71,26 @@ module Smswire
       finish(Result.new(status:, message:, receipt:, delivery:))
     rescue PermanentError => error
       delivery&.record_failure!(error, message)
+      if error.opted_out? && Smswire.config.enforce_consent
+        Consent.opt_out!(message.to, scope: message.consent_scope, source: :carrier)
+      end
       finish(Result.new(status: :failed, message:, error:, delivery:))
     rescue TransientError => error
       delivery&.release!(error)
       raise
+    end
+
+    def consent_rejection(rule)
+      return nil if rule[:consent] == :none || !Smswire.config.enforce_consent
+
+      status = Consent.status_for(message.to, scope: message.consent_scope)
+      return :rejected_opted_out if status == "opted_out"
+      :rejected_no_consent if rule[:consent] == :require_opted_in && status != "opted_in"
+    end
+
+    def defer(status, resume_at)
+      ActiveSupport::Notifications.instrument("reject.smswire", message.to_log_h.merge(reason: status, resume_at:))
+      finish(Result.new(status:, message:, resume_at:))
     end
 
     def reject(status)

@@ -5,7 +5,7 @@ module Smswire
   # the pipeline. Interceptors may change any attribute before delivery.
   class Message
     attr_accessor :to, :from, :body, :media_urls, :messaging_service, :provider,
-      :category, :metadata, :validity_period, :messenger, :action, :recipient
+      :category, :metadata, :validity_period, :messenger, :action, :recipient, :consent_scope
     attr_reader :raw_to
 
     # Set by the pipeline when Smswire.config.callbacks_url is configured.
@@ -14,7 +14,7 @@ module Smswire
 
     def initialize(to:, body:, from: nil, media_urls: [], messaging_service: nil, provider: nil,
       category: nil, metadata: {}, validity_period: nil, idempotency_key: nil,
-      messenger: nil, action: nil, recipient: nil)
+      messenger: nil, action: nil, recipient: nil, consent_scope: nil)
       @to = to
       @raw_to = to
       @from = from
@@ -29,6 +29,7 @@ module Smswire
       @messenger = messenger
       @action = action&.to_s
       @recipient = recipient
+      @consent_scope = (consent_scope || "default").to_s
       @perform_deliveries = true
     end
 

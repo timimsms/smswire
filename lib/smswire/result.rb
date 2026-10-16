@@ -9,10 +9,15 @@ module Smswire
   #   :suppressed_by_interceptor   an interceptor cancelled delivery
   #   :skipped                     the messenger action did not call +text+
   #   :duplicate                   an identical message was sent inside the dedupe window
+  #   :rejected_opted_out          the recipient opted out in this consent scope
+  #   :rejected_no_consent         the category requires opt-in and there is none
+  #   :rejected_rate_limited       over the category rate limit, with exceed: :reject
+  #   :deferred_quiet_hours        inside quiet hours; re-enqueued for +resume_at+
+  #   :deferred_rate_limited       over the category rate limit; re-enqueued for +resume_at+
   #
   # +delivery+ is the Smswire::Delivery row when persistence is enabled.
-  Result = Data.define(:status, :message, :receipt, :error, :delivery) do
-    def initialize(status:, message: nil, receipt: nil, error: nil, delivery: nil)
+  Result = Data.define(:status, :message, :receipt, :error, :delivery, :resume_at) do
+    def initialize(status:, message: nil, receipt: nil, error: nil, delivery: nil, resume_at: nil)
       super
     end
 
@@ -27,6 +32,8 @@ module Smswire
     def skipped? = status == :skipped
 
     def duplicate? = status == :duplicate
+
+    def deferred? = status.to_s.start_with?("deferred_")
 
     def provider_id = receipt&.provider_id
   end

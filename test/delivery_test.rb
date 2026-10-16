@@ -92,10 +92,10 @@ class DeliveryTest < Smswire::TestCase
   end
 
   test "a permanent failure is recorded and may be retried" do
-    Smswire::Providers::Test.fail_next(Smswire::PermanentError.new("blocked", reason: :opted_out, provider_code: "21610"))
+    Smswire::Providers::Test.fail_next(Smswire::PermanentError.new("filtered", reason: :rejected, provider_code: "30007"))
     failed = send_literal
     assert failed.failed?
-    assert_equal ["failed", "21610", "blocked"], [failed.delivery.status, failed.delivery.error_code, failed.delivery.error_message]
+    assert_equal ["failed", "30007", "filtered"], [failed.delivery.status, failed.delivery.error_code, failed.delivery.error_message]
     assert failed.delivery.failed_at
 
     retried = send_literal
